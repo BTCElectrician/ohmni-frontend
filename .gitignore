@@ -1,0 +1,6 @@
+/abco-ai-frontend/
+.next/
+node_modules/
+.env*
+.cursorrules
+.DS_Store
