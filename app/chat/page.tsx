@@ -66,6 +66,17 @@ export default function ChatPage() {
         return;
       } catch (error) {
         console.error('Failed to create session:', error);
+        
+        // Show user-friendly error
+        if (error instanceof Error) {
+          if (error.message.includes('Authentication required')) {
+            // Redirect to login if auth failed
+            router.push('/login?error=session_expired');
+          } else {
+            // Show error toast or alert for other errors
+            alert('Failed to start chat. Please try again.');
+          }
+        }
         return;
       }
     }

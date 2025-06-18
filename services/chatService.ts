@@ -1,6 +1,5 @@
 import { api } from '@/lib/api';
 import { ChatSession, ChatMessage } from '@/types/api';
-import { getSession } from 'next-auth/react';
 
 export class ChatService {
   // Session management
@@ -15,10 +14,23 @@ export class ChatService {
 
   async createSession(name?: string): Promise<ChatSession> {
     try {
+      // Verify we have auth before making the request
+      // Use dynamic import to avoid client-only module in server builds
+      const { getSession } = await import('next-auth/react');
+      const session = await getSession();
+      if (!(session as any)?.accessToken) {
+        throw new Error('Authentication required. Please log in.');
+      }
+      
       return await api.post('/api/chat/sessions', { name });
     } catch (error) {
       console.error('Failed to create chat session:', error);
-      // Return a mock session for now
+      // For now, still return a mock session for graceful degradation
+      // but rethrow the error so calling code can handle auth failures
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        throw error;
+      }
+      // Return a mock session for other errors (backend not available, etc.)
       return {
         id: Date.now().toString(),
         name: name || 'New Chat',
@@ -96,6 +108,8 @@ export class ChatService {
     onError: (error: Error) => void
   ): Promise<void> {
     try {
+      // Use dynamic import to avoid client-only module in server builds
+      const { getSession } = await import('next-auth/react');
       const session = await getSession();
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/${sessionId}/stream`,
@@ -103,8 +117,8 @@ export class ChatService {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(session?.accessToken && {
-              'Authorization': `Bearer ${session.accessToken}`
+            ...((session as any)?.accessToken && {
+              'Authorization': `Bearer ${(session as any).accessToken}`
             })
           },
           body: JSON.stringify({ message }),

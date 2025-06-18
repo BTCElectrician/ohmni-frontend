@@ -16,12 +16,18 @@ export default function HomePage() {
     }
   }, [status, router]);
 
+  // Show loading state while checking authentication
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-bg">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-white">Loading...</div>
       </div>
     );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (status === 'unauthenticated') {
+    return null;
   }
 
   return (

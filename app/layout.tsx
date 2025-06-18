@@ -3,7 +3,6 @@ import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { SessionProvider } from './components/providers/SessionProvider'
-import { SessionDebug } from '@/components/debug/SessionDebug'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,7 +23,6 @@ export default function RootLayout({
           <main className="min-h-screen bg-dark-bg text-text-primary">
             {children}
           </main>
-          <SessionDebug />
         </SessionProvider>
       </body>
     </html>
