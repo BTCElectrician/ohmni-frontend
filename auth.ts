@@ -2,7 +2,6 @@
 import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
-import { apiRequest } from "@/lib/api";
 import type { AuthResponse } from "@/types/api";
 
 // Extend the built-in session/token types
@@ -42,13 +41,23 @@ export const config: NextAuthConfig = {
         console.log('🔑 Attempting login via API utility');
 
         try {
-          const data = await apiRequest<AuthResponse>('/api/auth/login', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
             method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ 
               email: credentials.email, 
               password: credentials.password 
             })
           });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Authentication failed');
+          }
+
+          const data: AuthResponse = await response.json();
           
           // apiRequest already parses JSON, so we have the data directly
           console.log('✅ Login response:', data);

@@ -1,9 +1,7 @@
 'use client';
 
-// Use proxy in development to avoid CORS issues
-const BASE_URL = process.env.NODE_ENV === 'development' 
-  ? '/backend'  // This will be proxied to the backend
-  : process.env.NEXT_PUBLIC_BACKEND_URL;
+// Always use the full backend URL
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmni-backend.onrender.com';
 
 export class APIError extends Error {
   constructor(

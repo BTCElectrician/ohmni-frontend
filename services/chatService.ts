@@ -3,10 +3,20 @@ import { ChatSession, ChatMessage } from '@/types/api';
 import { getSession } from 'next-auth/react';
 
 export class ChatService {
+  // Helper to get auth headers
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const session = await getSession();
+    if (session?.accessToken) {
+      return { Authorization: `Bearer ${session.accessToken}` };
+    }
+    return {};
+  }
+
   // Session management
   async getSessions(): Promise<ChatSession[]> {
     try {
-      return await api.get<ChatSession[]>('/api/chat/sessions');
+      const headers = await this.getAuthHeaders();
+      return await api.get<ChatSession[]>('/api/chat/sessions', { headers });
     } catch (error) {
       console.warn('Chat sessions endpoint error:', error);
       return [];
@@ -15,16 +25,12 @@ export class ChatService {
 
   async createSession(name?: string): Promise<ChatSession> {
     try {
-      // Verify we have auth before making the request
-      const session = await getSession();
-      if (!(session as any)?.accessToken) {
-        throw new Error('Authentication required. Please log in.');
-      }
+      const headers = await this.getAuthHeaders();
       
       // Backend expects 'name' parameter, not 'title'
       const response = await api.post<ChatSession>('/api/chat/sessions', { 
         name: name || 'New Chat' 
-      });
+      }, { headers });
       
       return response;
     } catch (error) {
@@ -48,7 +54,8 @@ export class ChatService {
 
   async getSession(id: string): Promise<ChatSession> {
     try {
-      return await api.get<ChatSession>(`/api/chat/sessions/${id}`);
+      const headers = await this.getAuthHeaders();
+      return await api.get<ChatSession>(`/api/chat/sessions/${id}`, { headers });
     } catch (error) {
       console.error('Failed to get chat session:', error);
       throw error;
@@ -57,7 +64,8 @@ export class ChatService {
 
   async deleteSession(id: string): Promise<void> {
     try {
-      await api.delete<void>(`/api/chat/sessions/${id}`);
+      const headers = await this.getAuthHeaders();
+      await api.delete<void>(`/api/chat/sessions/${id}`, { headers });
     } catch (error) {
       console.error('Failed to delete chat session:', error);
       throw error;
@@ -66,7 +74,8 @@ export class ChatService {
 
   async renameSession(id: string, name: string): Promise<ChatSession> {
     try {
-      return await api.put<ChatSession>(`/api/chat/sessions/${id}/rename`, { name });
+      const headers = await this.getAuthHeaders();
+      return await api.put<ChatSession>(`/api/chat/sessions/${id}/rename`, { name }, { headers });
     } catch (error) {
       console.error('Failed to rename chat session:', error);
       throw error;
@@ -75,7 +84,8 @@ export class ChatService {
 
   async bulkDeleteSessions(ids: string[]): Promise<void> {
     try {
-      await api.post<void>('/api/chat/sessions/bulk-delete', { ids });
+      const headers = await this.getAuthHeaders();
+      await api.post<void>('/api/chat/sessions/bulk-delete', { ids }, { headers });
     } catch (error) {
       console.error('Failed to bulk delete sessions:', error);
       throw error;
@@ -85,7 +95,8 @@ export class ChatService {
   // Messages
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
-      return await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`);
+      const headers = await this.getAuthHeaders();
+      return await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`, { headers });
     } catch (error) {
       console.warn('Chat messages endpoint error:', error);
       return [];
@@ -94,10 +105,11 @@ export class ChatService {
 
   async sendMessage(sessionId: string, message: string): Promise<ChatMessage> {
     try {
+      const headers = await this.getAuthHeaders();
       // Use the correct endpoint format that the backend expects
       return await api.post<ChatMessage>(`/api/chat/${sessionId}/messages`, { 
         message 
-      });
+      }, { headers });
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function ApiDebug() {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -8,7 +8,13 @@ export default function ApiDebug() {
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginResult, setLoginResult] = useState<string>('')
+  const [windowOrigin, setWindowOrigin] = useState<string>('...')
   
+  useEffect(() => {
+    // Only access window on client side after mount
+    setWindowOrigin(window.location.origin)
+  }, [])
+
   const testBackend = async () => {
     setTestResult('Testing...')
     try {
@@ -64,7 +70,7 @@ export default function ApiDebug() {
       <h3 className="font-bold mb-2">API Debug Info</h3>
       <div className="space-y-1 text-sm">
         <p><span className="text-yellow-400">Backend URL:</span> {backendUrl || 'NOT SET'}</p>
-        <p><span className="text-yellow-400">Window Location:</span> {typeof window !== 'undefined' ? window.location.origin : 'SSR'}</p>
+        <p><span className="text-yellow-400">Window Location:</span> {windowOrigin}</p>
         <p><span className="text-yellow-400">NODE_ENV:</span> {process.env.NODE_ENV}</p>
       </div>
       {!backendUrl && (
