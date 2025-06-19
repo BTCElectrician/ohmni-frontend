@@ -48,15 +48,18 @@
 - ✅ `GET /api/auth/ping` - Health check
 
 ### Chat & AI (/api/chat/*)
-- ✅ `GET /api/chat/sessions` - **VERIFIED WORKING** - Database migration completed
-- ✅ `POST /api/chat/sessions` - **VERIFIED WORKING** - ChatSession model aligned with API
-- ✅ `GET/PUT/DELETE /api/chat/sessions/{id}` - **VERIFIED WORKING** - All fields present
-- ✅ `POST /api/chat/{id}/messages` - **VERIFIED WORKING** - Model compatibility confirmed  
-- ✅ `GET /api/chat/sessions/{id}/messages` - **VERIFIED WORKING** - Query ordering fixed
-- ✅ `POST /api/chat/{id}/stream` - **VERIFIED WORKING** - SSE streaming functional
-- ✅ `GET /api/chat/search` - **VERIFIED WORKING** - Search functionality restored
-- ✅ `GET /api/chat/history/{id}` - **VERIFIED WORKING** - Chat history working
-- ✅ `GET /api/chat/export/{id}` - **VERIFIED WORKING** - Export functionality ready
+- ✅ `GET /api/chat/sessions` - **VERIFIED WORKING** - Pagination support (20/page default)
+- ✅ `POST /api/chat/sessions` - **VERIFIED WORKING** - Accepts 'name' or 'title', rate limited 20/min
+- ✅ `GET /api/chat/sessions/{session_id}` - **VERIFIED WORKING** - Returns session with messages
+- ✅ `PUT /api/chat/sessions/{session_id}` - **VERIFIED WORKING** - Updates name, type, context
+- ✅ `DELETE /api/chat/sessions/{session_id}` - **VERIFIED WORKING** - Soft delete with rollback
+- ✅ `GET /api/chat/sessions/{session_id}/messages` - **VERIFIED WORKING** - Message history in order
+- ✅ `POST /api/chat/sessions/{session_id}/messages` - **VERIFIED WORKING** - Returns 201 with both user/AI messages, 30/min limit
+- ✅ `GET /api/chat/sessions/{session_id}/stream` - **VERIFIED WORKING** - SSE without message body
+- ✅ `POST /api/chat/sessions/{session_id}/stream` - **VERIFIED WORKING** - SSE streaming with rate limit 6/sec, 100/hr
+- ✅ `GET /api/chat/history/{session_id}` - **VERIFIED WORKING** - Comprehensive session history
+- ✅ `GET /api/chat/search?q=<query>` - **VERIFIED WORKING** - Cross-session message search
+- ✅ `GET /api/chat/export/{session_id}` - **VERIFIED WORKING** - JSON export functionality
 
 ### NFPA-70 Electrical Code (/api/nfpa70/*)
 - ✅ `POST /api/nfpa70/query` - Code lookup with streaming
@@ -105,11 +108,11 @@ backend/
 ├── api/              # ← NEW: All API blueprints organized here
 │   ├── auth_api.py   # Authentication endpoints
 │   ├── chat.py       # Chat and streaming
+│   ├── health.py     # Health monitoring
 │   ├── nfpa70.py     # Electrical code lookup  
+│   ├── notes.py      # Note management
 │   └── upload.py     # File upload and analysis
 ├── extensions.py     # Flask extensions
-├── health.py         # Health monitoring
-└── notes.py          # Note management
 
 Root files:
 ├── app_minimal.py    # Main Flask application

@@ -150,7 +150,7 @@ export class ChatService {
       };
       console.log('Request body:', requestBody);
       
-      // Based on the logs, it seems the URL needs 'sessions' in the path
+      // Both GET and POST will use the same URL pattern after backend fix
       const url = `/api/chat/sessions/${sessionId}/messages`;
       console.log('Sending POST to:', url);
       
@@ -189,10 +189,11 @@ export class ChatService {
     onError: (error: Error) => void
   ): Promise<void> {
     try {
+      // Streaming uses: /api/chat/{id}/stream (WITHOUT "sessions")
       const response = await streamRequest(`/api/chat/${sessionId}/stream`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ content: message }), // Changed from 'message' to 'content' to match backend
       });
 
       if (!response.ok) {
