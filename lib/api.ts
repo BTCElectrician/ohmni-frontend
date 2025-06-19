@@ -50,6 +50,17 @@ export async function apiRequest<T = unknown>(
       statusText: response.statusText,
       url: url
     });
+    
+    // For 500 errors, try to get the error details
+    if (response.status === 500) {
+      try {
+        const errorText = await response.text();
+        console.error('Backend 500 Error Details:', errorText);
+      } catch (e) {
+        console.error('Could not read error response body');
+      }
+    }
+    
     await handleAPIError(response);
   }
   

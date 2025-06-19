@@ -1,4 +1,4 @@
-import { api, streamRequest } from '@/lib/api';
+import { api, streamRequest, APIError } from '@/lib/api';
 import { ChatSession, ChatMessage } from '@/types/api';
 import { getSession } from 'next-auth/react';
 
@@ -144,21 +144,37 @@ export class ChatService {
       const headers = await this.getAuthHeaders();
       console.log('Auth headers:', headers);
       
-      // Backend expects 'content' field, not 'message'
-      // Use the correct endpoint path without 'sessions'
+      // Prepare request body
+      const requestBody = { 
+        content: message  // Backend expects 'content' field
+      };
+      console.log('Request body:', requestBody);
+      
+      // Based on the logs, it seems the URL needs 'sessions' in the path
+      const url = `/api/chat/sessions/${sessionId}/messages`;
+      console.log('Sending POST to:', url);
+      
       const response = await api.post<{
         user_message: ChatMessage;
         ai_message: ChatMessage;
-      }>(`/api/chat/${sessionId}/messages`, { 
-        content: message  // Changed from 'message' to 'content'
-      }, { headers });
+      }>(url, requestBody, { headers });
       
       console.log('Message sent successfully:', response);
       
       // Return the AI message since that's what we want to display
       return response.ai_message;
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send message - Full error:', error);
+      
+      // Check if it's an APIError with more details
+      if (error instanceof APIError) {
+        console.error('API Error details:', {
+          status: error.status,
+          message: error.message,
+          details: error.details
+        });
+      }
+      
       throw error;
     }
   }
