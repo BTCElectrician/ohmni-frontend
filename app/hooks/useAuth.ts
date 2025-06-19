@@ -37,7 +37,7 @@ export function useAuth() {
           localStorage.removeItem('rememberedEmail')
         }
 
-        router.push('/chat')
+        router.push('/')
         return true
       }
 

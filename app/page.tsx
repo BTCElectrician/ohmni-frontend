@@ -2,19 +2,10 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { FeatureCard } from '@/components/home/FeatureCard';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function HomePage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const firstName = session?.user?.name?.split(' ')[0];
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -27,11 +18,6 @@ export default function HomePage() {
         <div className="text-white">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render anything if not authenticated (will redirect)
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   return (
