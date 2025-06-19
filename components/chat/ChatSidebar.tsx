@@ -15,6 +15,7 @@ export function ChatSidebar() {
     try {
       setError(null);
       const data = await chatService.getSessions();
+      console.log('Loaded sessions:', data);
       setSessions(data);
     } catch (error) {
       console.error('Failed to load sessions:', error);

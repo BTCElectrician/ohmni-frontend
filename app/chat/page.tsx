@@ -9,6 +9,7 @@ import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage as ChatMessageType } from '@/types/api';
+import ApiDebug from '@/components/debug/ApiDebug';
 
 const PROMPT_SUGGESTIONS = [
   { icon: '⚡', text: 'Explain electrical load calculations for a 2000 sq ft residential building' },
@@ -29,6 +30,7 @@ export default function ChatPage() {
     updateMessage,
     setIsStreaming,
     setCurrentSession,
+    sessions,
   } = useChatStore();
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -62,7 +64,15 @@ export default function ChatPage() {
     if (!currentSession) {
       // Create a new session if none exists
       try {
+        console.log('No current session, creating new one...');
         const session = await chatService.createSession('New Chat');
+        console.log('New session created:', session);
+        
+        // Verify session has an id
+        if (!session || !session.id) {
+          throw new Error('Failed to create session - invalid response');
+        }
+        
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
         // Now send the message with the new session
@@ -78,8 +88,10 @@ export default function ChatPage() {
             router.push('/login?error=session_expired');
           } else {
             // Show error toast or alert for other errors
-            alert('Failed to start chat. Please try again.');
+            alert(`Failed to start chat: ${error.message}`);
           }
+        } else {
+          alert('Failed to start chat. Please try again.');
         }
         return;
       }
@@ -89,7 +101,7 @@ export default function ChatPage() {
   };
 
   const sendMessageWithSession = async (sessionId: string, content: string) => {
-    // Add user message
+    // Add user message immediately for better UX
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
       role: 'user',
@@ -99,28 +111,42 @@ export default function ChatPage() {
     };
     addMessage(userMessage);
 
-    // Create AI message placeholder
-    const aiMessageId = (Date.now() + 1).toString();
-    const aiMessage: ChatMessageType = {
-      id: aiMessageId,
+    // Create AI message placeholder with a temporary ID
+    const tempAiMessageId = (Date.now() + 1).toString();
+    const aiMessagePlaceholder: ChatMessageType = {
+      id: tempAiMessageId,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
       sessionId: sessionId,
     };
-    addMessage(aiMessage);
-    setStreamingMessageId(aiMessageId);
+    addMessage(aiMessagePlaceholder);
+    setStreamingMessageId(tempAiMessageId);
     setIsStreaming(true);
 
-    // Try sending the message
     try {
-      const response = await chatService.sendMessage(sessionId, content);
-      updateMessage(aiMessageId, response.content || 'Message sent successfully!');
+      // Send message and get AI response
+      const aiResponse = await chatService.sendMessage(sessionId, content);
+      
+      // Update the placeholder with the actual AI response
+      // The backend returns the complete AI message with its own ID
+      updateMessage(tempAiMessageId, aiResponse.content || 'Message sent successfully!');
+      
+      // Optionally, we could replace the entire message with the backend version
+      // This would ensure we have the correct ID, timestamp, model info, etc.
+      // But for now, just updating the content is sufficient
+      
       setIsStreaming(false);
       setStreamingMessageId(null);
+      
+      // Reload messages to ensure we're in sync with backend
+      // This will get both the user and AI messages with correct IDs
+      if (currentSession) {
+        loadMessages();
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
-      updateMessage(aiMessageId, 'Sorry, I encountered an error processing your request.');
+      updateMessage(tempAiMessageId, 'Sorry, I encountered an error processing your request.');
       setIsStreaming(false);
       setStreamingMessageId(null);
     }
@@ -215,6 +241,29 @@ export default function ChatPage() {
           isStreaming={isStreaming}
           disabled={false}
         />
+      </div>
+
+      {/* Debug Section */}
+      <ApiDebug />
+      
+      {/* Session Debug Info */}
+      <div className="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded-lg shadow-lg z-50 max-w-md text-xs">
+        <h3 className="font-bold mb-2">Session Debug</h3>
+        <div className="space-y-1">
+          <p><span className="text-yellow-400">Auth Status:</span> {status}</p>
+          <p><span className="text-yellow-400">Current Session ID:</span> {currentSession?.id || 'None'}</p>
+          <p><span className="text-yellow-400">Current Session Name:</span> {currentSession?.name || 'None'}</p>
+          <p><span className="text-yellow-400">Total Sessions:</span> {sessions.length}</p>
+          <p><span className="text-yellow-400">Is Streaming:</span> {isStreaming ? 'Yes' : 'No'}</p>
+          <p><span className="text-yellow-400">Messages Count:</span> {messages.length}</p>
+        </div>
+        {currentSession && (
+          <div className="mt-2 bg-gray-800 p-2 rounded">
+            <pre className="text-xs overflow-x-auto">
+              {JSON.stringify(currentSession, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

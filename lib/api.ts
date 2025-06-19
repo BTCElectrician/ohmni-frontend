@@ -2,6 +2,7 @@
 
 // Always use the full backend URL
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmni-backend.onrender.com';
+console.log('API BASE_URL configured as:', BASE_URL);
 
 export class APIError extends Error {
   constructor(
@@ -37,15 +38,26 @@ export async function apiRequest<T = unknown>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${BASE_URL}${endpoint}`, applyDefaults(options));
+  const url = `${BASE_URL}${endpoint}`;
+  console.log('API Request URL:', url);
+  console.log('API Request Options:', options);
+  
+  const response = await fetch(url, applyDefaults(options));
   
   if (!response.ok) {
+    console.error('API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: url
+    });
     await handleAPIError(response);
   }
   
   // Handle empty responses
   const text = await response.text();
-  return text ? JSON.parse(text) : {} as T;
+  const result = text ? JSON.parse(text) : {} as T;
+  console.log('API Response:', result);
+  return result;
 }
 
 // Convenience methods with proper typing

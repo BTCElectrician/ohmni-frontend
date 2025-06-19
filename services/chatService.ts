@@ -16,7 +16,17 @@ export class ChatService {
   async getSessions(): Promise<ChatSession[]> {
     try {
       const headers = await this.getAuthHeaders();
-      return await api.get<ChatSession[]>('/api/chat/sessions', { headers });
+      const response = await api.get<{
+        sessions: ChatSession[];
+        total: number;
+        pages: number;
+        current_page: number;
+      }>('/api/chat/sessions', { headers });
+      
+      console.log('Sessions response:', response);
+      
+      // Extract sessions array from paginated response
+      return response.sessions || [];
     } catch (error) {
       console.warn('Chat sessions endpoint error:', error);
       return [];
@@ -26,13 +36,28 @@ export class ChatService {
   async createSession(name?: string): Promise<ChatSession> {
     try {
       const headers = await this.getAuthHeaders();
+      console.log('Creating session with headers:', headers);
       
       // Backend expects 'name' parameter, not 'title'
-      const response = await api.post<ChatSession>('/api/chat/sessions', { 
+      const response = await api.post<{
+        message: string;
+        session: ChatSession;
+      }>('/api/chat/sessions', { 
         name: name || 'New Chat' 
       }, { headers });
       
-      return response;
+      console.log('Created session response:', response);
+      
+      // Extract the session from the wrapped response
+      const session = response.session;
+      
+      // Verify the session has an id
+      if (!session || !session.id) {
+        console.error('Session response missing id:', response);
+        throw new Error('Invalid session response - missing session or id');
+      }
+      
+      return session;
     } catch (error) {
       console.error('Failed to create chat session:', error);
       
@@ -41,14 +66,8 @@ export class ChatService {
         throw error;
       }
       
-      // For other errors, return a mock session for graceful degradation
-      // Use proper field names that match our updated interface
-      return {
-        id: Date.now().toString(), // Convert to string to match backend expectation
-        name: name || 'New Chat',
-        timestamp: new Date().toISOString(), // Use 'timestamp' not 'created_at'
-        message_count: 0 // Use 'message_count' not 'messages_count'
-      };
+      // Don't return a mock session - let the error bubble up
+      throw error;
     }
   }
 
@@ -96,7 +115,17 @@ export class ChatService {
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
       const headers = await this.getAuthHeaders();
-      return await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`, { headers });
+      const response = await api.get<{
+        messages: ChatMessage[];
+        total: number;
+        pages: number;
+        current_page: number;
+      }>(`/api/chat/sessions/${sessionId}/messages`, { headers });
+      
+      console.log('Messages response:', response);
+      
+      // Extract messages array from paginated response
+      return response.messages || [];
     } catch (error) {
       console.warn('Chat messages endpoint error:', error);
       return [];
@@ -105,11 +134,29 @@ export class ChatService {
 
   async sendMessage(sessionId: string, message: string): Promise<ChatMessage> {
     try {
+      console.log('Sending message to session:', sessionId);
+      
+      // Validate sessionId
+      if (!sessionId || sessionId === 'undefined') {
+        throw new Error('Invalid session ID');
+      }
+      
       const headers = await this.getAuthHeaders();
-      // Use the correct endpoint format that the backend expects
-      return await api.post<ChatMessage>(`/api/chat/${sessionId}/messages`, { 
-        message 
+      console.log('Auth headers:', headers);
+      
+      // Backend expects 'content' field, not 'message'
+      // Use the correct endpoint path without 'sessions'
+      const response = await api.post<{
+        user_message: ChatMessage;
+        ai_message: ChatMessage;
+      }>(`/api/chat/${sessionId}/messages`, { 
+        content: message  // Changed from 'message' to 'content'
       }, { headers });
+      
+      console.log('Message sent successfully:', response);
+      
+      // Return the AI message since that's what we want to display
+      return response.ai_message;
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;

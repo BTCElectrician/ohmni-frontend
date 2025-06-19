@@ -67,11 +67,12 @@ export default function ApiDebug() {
   
   return (
     <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded-lg shadow-lg z-50 max-w-md">
-      <h3 className="font-bold mb-2">API Debug Info</h3>
+      <h3 className="font-bold mb-2">API Debug Info - Updated 16:01</h3>
       <div className="space-y-1 text-sm">
         <p><span className="text-yellow-400">Backend URL:</span> {backendUrl || 'NOT SET'}</p>
         <p><span className="text-yellow-400">Window Location:</span> {windowOrigin}</p>
         <p><span className="text-yellow-400">NODE_ENV:</span> {process.env.NODE_ENV}</p>
+        <p><span className="text-green-400">Code Updated:</span> 16:01 PST</p>
       </div>
       {!backendUrl && (
         <div className="mt-2 text-red-400 text-xs">
