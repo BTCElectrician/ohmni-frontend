@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api, streamRequest } from '@/lib/api';
 import { ChatSession, ChatMessage } from '@/types/api';
 import { getSession } from 'next-auth/react';
 
@@ -6,7 +6,7 @@ export class ChatService {
   // Session management
   async getSessions(): Promise<ChatSession[]> {
     try {
-      return await api.get('/api/chat/sessions');
+      return await api.get<ChatSession[]>('/api/chat/sessions');
     } catch (error) {
       console.warn('Chat sessions endpoint error:', error);
       return [];
@@ -22,7 +22,7 @@ export class ChatService {
       }
       
       // Backend expects 'name' parameter, not 'title'
-      const response = await api.post('/api/chat/sessions', { 
+      const response = await api.post<ChatSession>('/api/chat/sessions', { 
         name: name || 'New Chat' 
       });
       
@@ -48,7 +48,7 @@ export class ChatService {
 
   async getSession(id: string): Promise<ChatSession> {
     try {
-      return await api.get(`/api/chat/sessions/${id}`);
+      return await api.get<ChatSession>(`/api/chat/sessions/${id}`);
     } catch (error) {
       console.error('Failed to get chat session:', error);
       throw error;
@@ -57,7 +57,7 @@ export class ChatService {
 
   async deleteSession(id: string): Promise<void> {
     try {
-      await api.delete(`/api/chat/sessions/${id}`);
+      await api.delete<void>(`/api/chat/sessions/${id}`);
     } catch (error) {
       console.error('Failed to delete chat session:', error);
       throw error;
@@ -66,7 +66,7 @@ export class ChatService {
 
   async renameSession(id: string, name: string): Promise<ChatSession> {
     try {
-      return await api.put(`/api/chat/sessions/${id}/rename`, { name });
+      return await api.put<ChatSession>(`/api/chat/sessions/${id}/rename`, { name });
     } catch (error) {
       console.error('Failed to rename chat session:', error);
       throw error;
@@ -75,7 +75,7 @@ export class ChatService {
 
   async bulkDeleteSessions(ids: string[]): Promise<void> {
     try {
-      await api.post('/api/chat/sessions/bulk-delete', { ids });
+      await api.post<void>('/api/chat/sessions/bulk-delete', { ids });
     } catch (error) {
       console.error('Failed to bulk delete sessions:', error);
       throw error;
@@ -85,7 +85,7 @@ export class ChatService {
   // Messages
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
-      return await api.get(`/api/chat/sessions/${sessionId}/messages`);
+      return await api.get<ChatMessage[]>(`/api/chat/sessions/${sessionId}/messages`);
     } catch (error) {
       console.warn('Chat messages endpoint error:', error);
       return [];
@@ -95,7 +95,7 @@ export class ChatService {
   async sendMessage(sessionId: string, message: string): Promise<ChatMessage> {
     try {
       // Use the correct endpoint format that the backend expects
-      return await api.post(`/api/chat/${sessionId}/messages`, { 
+      return await api.post<ChatMessage>(`/api/chat/${sessionId}/messages`, { 
         message 
       });
     } catch (error) {
@@ -108,27 +108,17 @@ export class ChatService {
   async streamMessage(
     sessionId: string, 
     message: string,
+    token: string | null,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: Error) => void
   ): Promise<void> {
     try {
-      const session = await getSession();
-      const response = await fetch(
-        process.env.NODE_ENV === 'development'
-    ? `/backend/api/chat/${sessionId}/stream`
-    : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/${sessionId}/stream`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...((session as any)?.accessToken && {
-              'Authorization': `Bearer ${(session as any).accessToken}`
-            })
-          },
-          body: JSON.stringify({ message }),
-        }
-      );
+      const response = await streamRequest(`/api/chat/${sessionId}/stream`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: JSON.stringify({ message }),
+      });
 
       if (!response.ok) {
         throw new Error(`Stream error: ${response.statusText}`);

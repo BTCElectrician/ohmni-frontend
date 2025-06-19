@@ -108,7 +108,7 @@ export default function HomePage() {
         
         {/* Footer Tagline */}
         <p className="footer-tagline mt-12 mb-0 text-center text-text-secondary italic text-base pt-5 border-t border-electric-glow/20">
-          "Built by electricians. Powered by AI."
+          {`"Built by electricians. Powered by AI."`}
         </p>
       </div>
     </section>

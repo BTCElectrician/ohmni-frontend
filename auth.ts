@@ -2,6 +2,8 @@
 import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
+import { apiRequest } from "@/lib/api";
+import type { AuthResponse } from "@/types/api";
 
 // Extend the built-in session/token types
 declare module "next-auth" {
@@ -37,56 +39,33 @@ export const config: NextAuthConfig = {
           return null;
         }
 
-        // Always use full URL since this runs server-side
-        const loginUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`;
-        
-        console.log("🔐 Attempting login to:", loginUrl);
-        console.log("📧 Email:", credentials.email);
+        console.log('🔑 Attempting login via API utility');
 
         try {
-          const res = await fetch(loginUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
+          const data = await apiRequest<AuthResponse>('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              email: credentials.email, 
+              password: credentials.password 
+            })
           });
-
-          const text = await res.text();
-          console.log("📡 Response status:", res.status);
-          console.log("📡 Raw response:", text);
           
-          // Log credentials (without password) for debugging
-          console.log("📧 Attempted login with email:", credentials.email);
-          console.log("🔑 Password length:", String(credentials.password).length);
-
-          // Try to parse as JSON
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error("Failed to parse response as JSON:", e);
-            console.error("Response was:", text);
-            return null;
-          }
-
-          if (res.ok && data.access_token) {
-            console.log("✅ Login successful, token received");
+          // apiRequest already parses JSON, so we have the data directly
+          console.log('✅ Login response:', data);
+          
+          if (data.access_token) {
             return {
-              id: data.user?.id || credentials.email,
+              id: data.user?.id || String(credentials.email),
+              email: data.user?.email || String(credentials.email),
               name: data.user?.fullname || data.user?.username,
-              email: data.user?.email || credentials.email,
               accessToken: data.access_token,
             };
           }
-
-          console.error("❌ Login failed:", data);
-          return null;
+          
+          throw new Error(data.message || 'Invalid credentials');
         } catch (error) {
-          console.error("🚨 Network/Auth error:", error);
-          console.error("Login URL was:", loginUrl);
-          return null;
+          console.error('❌ Login error:', error);
+          throw new Error(error instanceof Error ? error.message : 'Authentication failed');
         }
       },
     }),

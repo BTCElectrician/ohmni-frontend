@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { PlusCircle, Folder, Star, Trash2, Edit2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { PlusCircle, Folder, Trash2 } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
 import { ChatSession } from '@/types/api';
@@ -11,11 +11,7 @@ export function ChatSidebar() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     try {
       setError(null);
       const data = await chatService.getSessions();
@@ -28,7 +24,11 @@ export function ChatSidebar() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setSessions]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   const createNewChat = async () => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/chatStore';
@@ -18,7 +18,7 @@ const PROMPT_SUGGESTIONS = [
 ];
 
 export default function ChatPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const {
     currentSession,
@@ -39,15 +39,7 @@ export default function ChatPage() {
     }
   }, [status, router]);
 
-  useEffect(() => {
-    if (currentSession) {
-      loadMessages();
-    } else {
-      setMessages([]);
-    }
-  }, [currentSession]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     if (!currentSession) return;
 
     try {
@@ -56,7 +48,15 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
-  };
+  }, [currentSession, setMessages]);
+
+  useEffect(() => {
+    if (currentSession) {
+      loadMessages();
+    } else {
+      setMessages([]);
+    }
+  }, [currentSession, setMessages, loadMessages]);
 
   const sendMessage = async (content: string) => {
     if (!currentSession) {

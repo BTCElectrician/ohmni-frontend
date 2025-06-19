@@ -51,7 +51,7 @@ export default function LoginPage() {
             OHMNI ORACLE
           </h2>
           <p className="text-center italic mb-6 text-text-secondary text-base">
-            "We handle it all, the rest is just decor."
+            {`"We handle it all, the rest is just decor."`}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
