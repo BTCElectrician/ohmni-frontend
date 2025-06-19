@@ -19,14 +19,17 @@ export interface AuthResponse {
   message?: string;
 }
 
-// Chat Types
+// Chat Types - Fixed to match backend ChatSession model
 export interface ChatSession {
   id: string;
   name: string;
-  created_at: string;
-  updated_at: string;
-  messages_count: number;
-  is_starred?: boolean;
+  timestamp: string;  // Backend uses 'timestamp' not 'created_at'
+  last_message?: string;
+  message_count: number; // Backend uses 'message_count' not 'messages_count'
+  user_id?: string;
+  project_id?: string;
+  is_active?: boolean;
+  // Removed updated_at - backend doesn't have this field
 }
 
 export interface ChatMessage {

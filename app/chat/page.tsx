@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
@@ -28,6 +28,7 @@ export default function ChatPage() {
     addMessage,
     updateMessage,
     setIsStreaming,
+    setCurrentSession,
   } = useChatStore();
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -62,7 +63,10 @@ export default function ChatPage() {
       // Create a new session if none exists
       try {
         const session = await chatService.createSession('New Chat');
-        // Update store will trigger re-render and load messages
+        // Set the session in the store so it can be used immediately
+        setCurrentSession(session);
+        // Now send the message with the new session
+        sendMessageWithSession(session.id, content);
         return;
       } catch (error) {
         console.error('Failed to create session:', error);
@@ -81,13 +85,17 @@ export default function ChatPage() {
       }
     }
 
+    sendMessageWithSession(currentSession.id, content);
+  };
+
+  const sendMessageWithSession = async (sessionId: string, content: string) => {
     // Add user message
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
       role: 'user',
       content,
       timestamp: new Date(),
-      sessionId: currentSession.id,
+      sessionId: sessionId,
     };
     addMessage(userMessage);
 
@@ -98,35 +106,21 @@ export default function ChatPage() {
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-      sessionId: currentSession.id,
+      sessionId: sessionId,
     };
     addMessage(aiMessage);
     setStreamingMessageId(aiMessageId);
     setIsStreaming(true);
 
-    // Stream the response
+    // Try sending the message
     try {
-      await chatService.streamMessage(
-        currentSession.id,
-        content,
-        (chunk) => {
-          // Update the AI message with streaming content
-          updateMessage(aiMessageId, (prev) => prev + chunk);
-        },
-        () => {
-          // Streaming complete
-          setIsStreaming(false);
-          setStreamingMessageId(null);
-        },
-        (error) => {
-          console.error('Streaming error:', error);
-          updateMessage(aiMessageId, 'Sorry, I encountered an error processing your request.');
-          setIsStreaming(false);
-          setStreamingMessageId(null);
-        }
-      );
+      const response = await chatService.sendMessage(sessionId, content);
+      updateMessage(aiMessageId, response.content || 'Message sent successfully!');
+      setIsStreaming(false);
+      setStreamingMessageId(null);
     } catch (error) {
       console.error('Failed to send message:', error);
+      updateMessage(aiMessageId, 'Sorry, I encountered an error processing your request.');
       setIsStreaming(false);
       setStreamingMessageId(null);
     }
@@ -134,6 +128,10 @@ export default function ChatPage() {
 
   const handlePromptClick = (prompt: string) => {
     sendMessage(prompt);
+  };
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
   };
 
   if (status === 'loading') {
@@ -151,6 +149,14 @@ export default function ChatPage() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
+        {/* Logout Button - Top Right */}
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 z-50 px-4 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 backdrop-blur-sm"
+        >
+          Sign Out
+        </button>
+
         {/* Content Container */}
         <div className="chat-content bg-dark-bg relative overflow-hidden flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
           {/* Background Effect */}
@@ -207,7 +213,7 @@ export default function ChatPage() {
         <ChatInput
           onSendMessage={sendMessage}
           isStreaming={isStreaming}
-          disabled={!currentSession && messages.length === 0}
+          disabled={false}
         />
       </div>
     </div>

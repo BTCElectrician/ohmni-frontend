@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { FeatureCard } from '@/components/home/FeatureCard';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -15,6 +15,10 @@ export default function HomePage() {
       router.push('/login');
     }
   }, [status, router]);
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
 
   // Show loading state while checking authentication
   if (status === 'loading') {
@@ -49,6 +53,14 @@ export default function HomePage() {
 
       {/* Welcome Card */}
       <div className="relative z-30 w-[90%] max-w-[800px] p-10 glass-card">
+        {/* Logout Button - Top Right */}
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 px-4 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 backdrop-blur-sm"
+        >
+          Sign Out
+        </button>
+
         {/* Welcome Heading */}
         <h1 className="text-4xl text-white mb-3 font-bold text-center text-glow">
           Welcome{firstName && `, ${firstName}`}!

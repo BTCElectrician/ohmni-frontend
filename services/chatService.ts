@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import { ChatSession, ChatMessage } from '@/types/api';
+import { getSession } from 'next-auth/react';
 
 export class ChatService {
   // Session management
@@ -7,7 +8,7 @@ export class ChatService {
     try {
       return await api.get('/api/chat/sessions');
     } catch (error) {
-      console.warn('Chat sessions endpoint not implemented yet:', error);
+      console.warn('Chat sessions endpoint error:', error);
       return [];
     }
   }
@@ -15,28 +16,32 @@ export class ChatService {
   async createSession(name?: string): Promise<ChatSession> {
     try {
       // Verify we have auth before making the request
-      // Use dynamic import to avoid client-only module in server builds
-      const { getSession } = await import('next-auth/react');
       const session = await getSession();
       if (!(session as any)?.accessToken) {
         throw new Error('Authentication required. Please log in.');
       }
       
-      return await api.post('/api/chat/sessions', { name });
+      // Backend expects 'name' parameter, not 'title'
+      const response = await api.post('/api/chat/sessions', { 
+        name: name || 'New Chat' 
+      });
+      
+      return response;
     } catch (error) {
       console.error('Failed to create chat session:', error);
-      // For now, still return a mock session for graceful degradation
-      // but rethrow the error so calling code can handle auth failures
+      
+      // For auth errors, rethrow so calling code can handle
       if (error instanceof Error && error.message.includes('Authentication required')) {
         throw error;
       }
-      // Return a mock session for other errors (backend not available, etc.)
+      
+      // For other errors, return a mock session for graceful degradation
+      // Use proper field names that match our updated interface
       return {
-        id: Date.now().toString(),
+        id: Date.now().toString(), // Convert to string to match backend expectation
         name: name || 'New Chat',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        messages_count: 0
+        timestamp: new Date().toISOString(), // Use 'timestamp' not 'created_at'
+        message_count: 0 // Use 'message_count' not 'messages_count'
       };
     }
   }
@@ -82,15 +87,15 @@ export class ChatService {
     try {
       return await api.get(`/api/chat/sessions/${sessionId}/messages`);
     } catch (error) {
-      console.warn('Chat messages endpoint not implemented yet:', error);
+      console.warn('Chat messages endpoint error:', error);
       return [];
     }
   }
 
   async sendMessage(sessionId: string, message: string): Promise<ChatMessage> {
     try {
-      return await api.post('/api/chat/message', { 
-        session_id: sessionId, 
+      // Use the correct endpoint format that the backend expects
+      return await api.post(`/api/chat/${sessionId}/messages`, { 
         message 
       });
     } catch (error) {
@@ -108,11 +113,11 @@ export class ChatService {
     onError: (error: Error) => void
   ): Promise<void> {
     try {
-      // Use dynamic import to avoid client-only module in server builds
-      const { getSession } = await import('next-auth/react');
       const session = await getSession();
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/${sessionId}/stream`,
+        process.env.NODE_ENV === 'development'
+    ? `/backend/api/chat/${sessionId}/stream`
+    : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/${sessionId}/stream`,
         {
           method: 'POST',
           headers: {

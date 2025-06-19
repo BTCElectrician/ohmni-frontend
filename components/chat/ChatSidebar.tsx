@@ -9,6 +9,7 @@ import { ChatSession } from '@/types/api';
 export function ChatSidebar() {
   const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
@@ -16,14 +17,14 @@ export function ChatSidebar() {
 
   const loadSessions = async () => {
     try {
+      setError(null);
       const data = await chatService.getSessions();
       setSessions(data);
     } catch (error) {
       console.error('Failed to load sessions:', error);
-      // Handle case where Flask endpoint doesn't exist yet
+      setError('Unable to load chat history due to backend issue');
+      // Set empty sessions so UI still works
       setSessions([]);
-      // Optional: Show a toast or notification to user
-      // toast.info('Chat history will be available once you start a conversation');
     } finally {
       setIsLoading(false);
     }
@@ -31,11 +32,13 @@ export function ChatSidebar() {
 
   const createNewChat = async () => {
     try {
+      setError(null);
       const session = await chatService.createSession('New Chat');
       setSessions([session, ...sessions]);
       setCurrentSession(session);
     } catch (error) {
       console.error('Failed to create session:', error);
+      setError('Unable to create new chat due to backend issue');
     }
   };
 
@@ -57,6 +60,7 @@ export function ChatSidebar() {
       }
     } catch (error) {
       console.error('Failed to delete session:', error);
+      setError('Unable to delete chat due to backend issue');
     }
   };
 
@@ -72,6 +76,13 @@ export function ChatSidebar() {
           <PlusCircle className="w-5 h-5" />
           <span>New chat</span>
         </button>
+        
+        {/* Error Banner */}
+        {error && (
+          <div className="mx-3 mb-3 p-2 bg-red-500/20 border border-red-400/30 rounded-lg text-red-300 text-xs">
+            {error}
+          </div>
+        )}
         
         {/* Starred Section */}
         <div className="mb-0 pb-0">
@@ -108,6 +119,10 @@ export function ChatSidebar() {
           {isLoading ? (
             <div className="text-sm text-text-secondary/70 text-center py-3">
               Loading...
+            </div>
+          ) : error ? (
+            <div className="text-sm text-red-400 text-center py-3">
+              Backend issue preventing<br />chat history from loading
             </div>
           ) : sessions.length > 0 ? (
             sessions.map((session) => (

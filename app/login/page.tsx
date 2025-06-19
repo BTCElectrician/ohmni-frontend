@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/app/hooks/useAuth'
 import { Eye, EyeOff } from 'lucide-react'
+import ApiDebug from '@/components/debug/ApiDebug'
 
 export default function LoginPage() {
   const { login, isLoading, error } = useAuth()
@@ -30,6 +31,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-dark-bg relative overflow-hidden">
+      <ApiDebug />
       {/* Background overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#071629]/60 to-deep-navy/50 z-10" />
       

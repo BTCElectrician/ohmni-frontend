@@ -1,6 +1,12 @@
+'use client';
+
+import { getSession } from 'next-auth/react';
 import type { ApiResponse } from '../types/api';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+// Use proxy in development to avoid CORS issues
+const BASE_URL = process.env.NODE_ENV === 'development' 
+  ? '/backend'  // This will be proxied to the backend
+  : process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // Helper to detect we're in the browser
 const isBrowser = () => typeof window !== "undefined";
@@ -19,20 +25,8 @@ export async function apiRequest<T = any>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
-  let accessToken: string | undefined;
-
-  // Get the session with JWT token - environment-aware
-  if (isBrowser()) {
-    // Client side - use getSession from next-auth/react
-    const { getSession } = await import("next-auth/react");
-    const session = await getSession();
-    accessToken = (session as any)?.accessToken;
-  } else {
-    // Server side - use auth() from the root auth file
-    const { auth } = await import("@/auth");
-    const session = await auth();
-    accessToken = (session as any)?.accessToken;
-  }
+  // Get the session with JWT token from NextAuth v5
+  const session = await getSession();
   
   const config: RequestInit = {
     ...options,
@@ -45,10 +39,10 @@ export async function apiRequest<T = any>(
   };
 
   // Add Authorization header if we have a token
-  if (accessToken) {
+  if ((session as any)?.accessToken) {
     config.headers = {
       ...config.headers,
-      'Authorization': `Bearer ${accessToken}`
+      'Authorization': `Bearer ${(session as any).accessToken}`
     };
   } else {
     console.warn('No access token available for request:', endpoint);
