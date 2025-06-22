@@ -5,17 +5,41 @@ import { PlusCircle, Folder, Trash2 } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
 import { ChatSession } from '@/types/api';
+import { useChatSessions } from '@/app/hooks/useChatSessions';
 
 export function ChatSidebar() {
   const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // PHASE 1: React Query enhancement (optional)
+  // If this fails, we'll fall back to the existing manual loading
+  const { 
+    data: queriedSessions, 
+    isLoading: isQueryLoading, 
+    error: queryError,
+    isSuccess: isQuerySuccess 
+  } = useChatSessions();
 
   const loadSessions = useCallback(async () => {
+    // PHASE 1: Prefer React Query data if available
+    if (isQuerySuccess && queriedSessions) {
+      console.log('Using React Query sessions:', queriedSessions);
+      setSessions(queriedSessions);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+    
+    // PHASE 1: If React Query failed, fall back to manual loading
+    if (queryError) {
+      console.log('React Query failed, falling back to manual loading:', queryError);
+    }
+    
     try {
       setError(null);
       const data = await chatService.getSessions();
-      console.log('Loaded sessions:', data);
+      console.log('Loaded sessions (manual fallback):', data);
       setSessions(data);
     } catch (error) {
       console.error('Failed to load sessions:', error);
@@ -25,7 +49,7 @@ export function ChatSidebar() {
     } finally {
       setIsLoading(false);
     }
-  }, [setSessions]);
+  }, [setSessions, isQuerySuccess, queriedSessions, queryError]);
 
   useEffect(() => {
     loadSessions();
@@ -117,7 +141,7 @@ export function ChatSidebar() {
           Chats
         </div>
         <div className="flex-1 overflow-y-auto px-2 min-h-0">
-          {isLoading ? (
+          {(isLoading || isQueryLoading) ? (
             <div className="text-sm text-text-secondary/70 text-center py-3">
               Loading...
             </div>
