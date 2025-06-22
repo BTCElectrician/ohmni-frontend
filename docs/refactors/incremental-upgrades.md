@@ -19,6 +19,17 @@ This document tracks the safe, incremental upgrades to bring our MVP codebase cl
 
 **Golden Rule**: Never break working functionality. Test everything before deploying.
 
+## 🚨 CRITICAL WORKFLOW - ALWAYS FOLLOW THIS
+
+For EVERY phase, ALWAYS:
+1. **CREATE FEATURE BRANCH FIRST**: `git checkout -b feature/phase-name`
+2. Make all changes on the feature branch
+3. Push to get preview URL: `git push origin feature/phase-name`
+4. Test thoroughly on preview deployment
+5. Only merge to main after preview testing passes
+
+**NEVER make changes directly on main branch!**
+
 ---
 
 ## Expert Review Summary
@@ -176,6 +187,8 @@ export function QueryProvider({ children }: { children: ReactNode }) {
 ---
 
 ## Phase 2: Toast Notifications (Safe Enhancement)
+
+**⚠️ IMPORTANT: Start with `git checkout -b feature/toast-notifications` BEFORE making any changes!**
 
 ### 🎯 How This Improves Your App
 - **Better UX**: Users see clear feedback instead of wondering if their action worked
@@ -790,5 +803,9 @@ git push origin main
 - Use React Query DevTools extensively during Phase 1
 - Monitor bundle size after each phase
 - Test offline scenarios thoroughly in Phase 5
+
+## Lessons Learned
+
+**2025-06-22**: During Phase 1, changes were initially made on main branch instead of creating a feature branch first. This put production at risk. Always create feature branches FIRST, before making any code changes. The Git workflow is clearly documented above and must be followed.
 
 Remember: Your working app is an achievement! These upgrades make it better, not different. 🚀
