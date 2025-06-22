@@ -1,42 +1,30 @@
 import { api, streamRequest, APIError } from '@/lib/api';
 import { ChatSession, ChatMessage } from '@/types/api';
-import { getSession } from 'next-auth/react';
 
 export class ChatService {
-  // Helper to get auth headers
-  private async getAuthHeaders(): Promise<Record<string, string>> {
-    const session = await getSession();
-    if (session?.accessToken) {
-      return { Authorization: `Bearer ${session.accessToken}` };
-    }
-    return {};
-  }
-
-  // Session management
+  // Sessions
   async getSessions(): Promise<ChatSession[]> {
     try {
-      const headers = await this.getAuthHeaders();
       const response = await api.get<{
         sessions: ChatSession[];
         total: number;
         pages: number;
         current_page: number;
-      }>('/api/chat/sessions', { headers });
+      }>('/api/chat/sessions'); // Removed skipAuth - using centralized auth
       
       console.log('Sessions response:', response);
       
-      // Extract sessions array from paginated response
+      // Backend returns paginated response with sessions array
       return response.sessions || [];
     } catch (error) {
-      console.warn('Chat sessions endpoint error:', error);
+      console.error('Failed to get chat sessions:', error);
       return [];
     }
   }
 
   async createSession(name?: string): Promise<ChatSession> {
     try {
-      const headers = await this.getAuthHeaders();
-      console.log('Creating session with headers:', headers);
+      console.log('Creating session with centralized auth');
       
       // Backend expects 'name' parameter, not 'title'
       const response = await api.post<{
@@ -44,7 +32,7 @@ export class ChatService {
         session: ChatSession;
       }>('/api/chat/sessions', { 
         name: name || 'New Chat' 
-      }, { headers });
+      }); // Removed skipAuth - using centralized auth
       
       console.log('Created session response:', response);
       
@@ -73,8 +61,7 @@ export class ChatService {
 
   async getSession(id: string): Promise<ChatSession> {
     try {
-      const headers = await this.getAuthHeaders();
-      return await api.get<ChatSession>(`/api/chat/sessions/${id}`, { headers });
+      return await api.get<ChatSession>(`/api/chat/sessions/${id}`); // Removed skipAuth
     } catch (error) {
       console.error('Failed to get chat session:', error);
       throw error;
@@ -83,30 +70,27 @@ export class ChatService {
 
   async deleteSession(id: string): Promise<void> {
     try {
-      const headers = await this.getAuthHeaders();
-      await api.delete<void>(`/api/chat/sessions/${id}`, { headers });
+      const response = await api.delete<{
+        message: string;
+      }>(`/api/chat/sessions/${id}`); // Removed skipAuth
+      
+      console.log('Delete session response:', response);
+      
+      // The backend should return a success message
+      if (response && response.message) {
+        console.log('Session deleted:', response.message);
+      }
     } catch (error) {
       console.error('Failed to delete chat session:', error);
       throw error;
     }
   }
 
-  async renameSession(id: string, name: string): Promise<ChatSession> {
+  async updateSession(id: string, updates: Partial<ChatSession>): Promise<ChatSession> {
     try {
-      const headers = await this.getAuthHeaders();
-      return await api.put<ChatSession>(`/api/chat/sessions/${id}/rename`, { name }, { headers });
+      return await api.put<ChatSession>(`/api/chat/sessions/${id}`, updates); // Removed skipAuth
     } catch (error) {
-      console.error('Failed to rename chat session:', error);
-      throw error;
-    }
-  }
-
-  async bulkDeleteSessions(ids: string[]): Promise<void> {
-    try {
-      const headers = await this.getAuthHeaders();
-      await api.post<void>('/api/chat/sessions/bulk-delete', { ids }, { headers });
-    } catch (error) {
-      console.error('Failed to bulk delete sessions:', error);
+      console.error('Failed to update chat session:', error);
       throw error;
     }
   }
@@ -114,13 +98,12 @@ export class ChatService {
   // Messages
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
     try {
-      const headers = await this.getAuthHeaders();
       const response = await api.get<{
         messages: ChatMessage[];
         total: number;
         pages: number;
         current_page: number;
-      }>(`/api/chat/sessions/${sessionId}/messages`, { headers });
+      }>(`/api/chat/sessions/${sessionId}/messages`); // Removed skipAuth
       
       console.log('Messages response:', response);
       
@@ -132,78 +115,34 @@ export class ChatService {
     }
   }
 
-  async sendMessage(sessionId: string, message: string): Promise<ChatMessage> {
+  async sendMessage(sessionId: string, content: string, onChunk?: (text: string) => void): Promise<ChatMessage> {
     try {
-      console.log('Sending message to session:', sessionId);
+      console.log('Sending message with centralized auth');
       
-      // Validate sessionId
-      if (!sessionId || sessionId === 'undefined') {
-        throw new Error('Invalid session ID');
-      }
-      
-      const headers = await this.getAuthHeaders();
-      console.log('Auth headers:', headers);
-      
-      // Prepare request body
-      const requestBody = { 
-        content: message  // Backend expects 'content' field
-      };
-      console.log('Request body:', requestBody);
-      
-      // Both GET and POST will use the same URL pattern after backend fix
-      const url = `/api/chat/sessions/${sessionId}/messages`;
-      console.log('Sending POST to:', url);
-      
-      const response = await api.post<{
-        user_message: ChatMessage;
-        ai_message: ChatMessage;
-      }>(url, requestBody, { headers });
-      
-      console.log('Message sent successfully:', response);
-      
-      // Return the AI message since that's what we want to display
-      return response.ai_message;
-    } catch (error) {
-      console.error('Failed to send message - Full error:', error);
-      
-      // Check if it's an APIError with more details
-      if (error instanceof APIError) {
-        console.error('API Error details:', {
-          status: error.status,
-          message: error.message,
-          details: error.details
-        });
-      }
-      
-      throw error;
-    }
-  }
-
-  // Streaming chat
-  async streamMessage(
-    sessionId: string, 
-    message: string,
-    token: string | null,
-    onChunk: (chunk: string) => void,
-    onComplete: () => void,
-    onError: (error: Error) => void
-  ): Promise<void> {
-    try {
-      // Streaming uses: /api/chat/{id}/stream (WITHOUT "sessions")
-      const response = await streamRequest(`/api/chat/${sessionId}/stream`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: JSON.stringify({ content: message }), // Changed from 'message' to 'content' to match backend
-      });
+      const response = await streamRequest(
+        `/api/chat/${sessionId}/stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content }),
+        }
+        // Removed skipAuth - using centralized auth
+      );
 
       if (!response.ok) {
-        throw new Error(`Stream error: ${response.statusText}`);
+        throw new APIError(response.status, response.statusText);
       }
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('Stream not available');
+      if (!reader) {
+        throw new Error('No response body');
+      }
 
       const decoder = new TextDecoder();
+      let messageBuffer = '';
+      let lastMessage: ChatMessage | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -216,24 +155,33 @@ export class ChatService {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                onChunk(data.content);
+              
+              if (data.type === 'content') {
+                messageBuffer += data.content;
+                onChunk?.(data.content);
+              } else if (data.type === 'message') {
+                lastMessage = data.message;
+              } else if (data.type === 'error') {
+                throw new Error(data.error);
               }
             } catch (e) {
-              // Handle non-JSON data
-              const content = line.slice(6);
-              if (content && content !== '[DONE]') {
-                onChunk(content);
-              }
+              console.error('Failed to parse SSE data:', e);
             }
           }
         }
       }
 
-      onComplete();
+      // Return the complete message or construct one from the buffer
+      return lastMessage || {
+        id: 'temp-' + Date.now(),
+        sessionId: sessionId,
+        role: 'assistant',
+        content: messageBuffer,
+        timestamp: new Date(),
+      };
     } catch (error) {
-      console.error('Streaming error:', error);
-      onError(error as Error);
+      console.error('Failed to send message:', error);
+      throw error;
     }
   }
 }

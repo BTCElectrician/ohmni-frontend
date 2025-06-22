@@ -1,5 +1,9 @@
 'use client';
 
+import { signOut } from 'next-auth/react';
+import { getAccessToken } from './auth/getAccessToken';
+import { toastFromApiError } from './toast-helpers';
+
 // Always use the full backend URL
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmni-backend.onrender.com';
 console.log('API BASE_URL configured as:', BASE_URL);
@@ -36,13 +40,38 @@ function applyDefaults(options: RequestInit = {}): RequestInit {
 
 export async function apiRequest<T = unknown>(
   endpoint: string, 
-  options: RequestInit = {}
+  options: RequestInit = {},
+  skipAuth = false  // Escape hatch for gradual migration
 ): Promise<T> {
+  // Get auth token unless explicitly skipped
+  const token = skipAuth ? null : await getAccessToken();
+  
+  // Build headers with auth token if available
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   const url = `${BASE_URL}${endpoint}`;
   console.log('API Request URL:', url);
-  console.log('API Request Options:', options);
+  console.log('API Request Options:', { ...options, headers });
   
-  const response = await fetch(url, applyDefaults(options));
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: token ? 'omit' : 'include', // Use bearer OR cookies, not both
+    mode: 'cors',
+  });
+  
+  // EXPERT TWEAK: 401 interceptor for auto-logout
+  if (response.status === 401 && !skipAuth) {
+    await signOut({ redirect: true, callbackUrl: '/login' });
+    throw new Error('Authentication required');
+  }
   
   if (!response.ok) {
     console.error('API Error Response:', {
@@ -71,43 +100,74 @@ export async function apiRequest<T = unknown>(
   return result;
 }
 
-// Convenience methods with proper typing
+// Updated convenience methods to support skipAuth parameter
 export const api = {
-  get: <T = unknown>(endpoint: string, options?: RequestInit) => 
-    apiRequest<T>(endpoint, { ...options, method: 'GET' }),
+  get: <T = unknown>(endpoint: string, options?: RequestInit & { skipAuth?: boolean }) => {
+    const { skipAuth, ...restOptions } = options || {};
+    return apiRequest<T>(endpoint, { ...restOptions, method: 'GET' }, skipAuth);
+  },
   
-  post: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit) => 
-    apiRequest<T>(endpoint, {
-      ...options,
+  post: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit & { skipAuth?: boolean }) => {
+    const { skipAuth, ...restOptions } = options || {};
+    return apiRequest<T>(endpoint, {
+      ...restOptions,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
-    }),
+    }, skipAuth);
+  },
   
-  put: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit) => 
-    apiRequest<T>(endpoint, {
-      ...options,
+  put: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit & { skipAuth?: boolean }) => {
+    const { skipAuth, ...restOptions } = options || {};
+    return apiRequest<T>(endpoint, {
+      ...restOptions,
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
-    }),
+    }, skipAuth);
+  },
   
-  delete: <T = unknown>(endpoint: string, options?: RequestInit) => 
-    apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+  delete: <T = unknown>(endpoint: string, options?: RequestInit & { skipAuth?: boolean }) => {
+    const { skipAuth, ...restOptions } = options || {};
+    return apiRequest<T>(endpoint, { ...restOptions, method: 'DELETE' }, skipAuth);
+  },
 }; 
 
 // Add streaming support for SSE endpoints
 export async function streamRequest(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  skipAuth = false
 ): Promise<Response> {
+  // Get auth token unless explicitly skipped
+  const token = skipAuth ? null : await getAccessToken();
+  
+  // Build headers with auth token if available
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
   // Add SSE header for streaming endpoints
   if (endpoint.includes('/stream')) {
-    options.headers = { 
-      ...options.headers, 
-      Accept: 'text/event-stream' 
-    };
+    headers['Accept'] = 'text/event-stream';
   }
   
-  return fetch(`${BASE_URL}${endpoint}`, applyDefaults(options));
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: token ? 'omit' : 'include',
+    mode: 'cors',
+  });
+  
+  // Handle 401 for streaming requests
+  if (response.status === 401 && !skipAuth) {
+    await signOut({ redirect: true, callbackUrl: '/login' });
+    throw new Error('Authentication required');
+  }
+  
+  return response;
 }
 
 // Add error handling utility
