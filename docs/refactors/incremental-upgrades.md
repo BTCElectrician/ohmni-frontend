@@ -7,6 +7,12 @@
 **Git Status**: All changes committed  
 **React Query**: ✅ Implemented with DevTools  
 
+### Quick Test to Verify React Query
+1. Login and go to `/chat`
+2. Look for React Query DevTools icon (bottom-right flower 🌸)
+3. Navigate away and back - sessions should load instantly from cache
+4. Console shows: `Using React Query sessions: [...]`  
+
 ## Overview
 This document tracks the safe, incremental upgrades to bring our MVP codebase closer to the architecture described in `api_integration_guide.md`.
 
