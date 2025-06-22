@@ -6,6 +6,7 @@ import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
 import { ChatSession } from '@/types/api';
 import { useChatSessions } from '@/app/hooks/useChatSessions';
+import { toastFromApiError } from '@/lib/toast-helpers';
 
 export function ChatSidebar() {
   const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
@@ -44,6 +45,7 @@ export function ChatSidebar() {
     } catch (error) {
       console.error('Failed to load sessions:', error);
       setError('Unable to load chat history due to backend issue');
+      toastFromApiError(error);
       // Set empty sessions so UI still works
       setSessions([]);
     } finally {
@@ -64,6 +66,7 @@ export function ChatSidebar() {
     } catch (error) {
       console.error('Failed to create session:', error);
       setError('Unable to create new chat due to backend issue');
+      toastFromApiError(error);
     }
   };
 
@@ -86,6 +89,7 @@ export function ChatSidebar() {
     } catch (error) {
       console.error('Failed to delete session:', error);
       setError('Unable to delete chat due to backend issue');
+      toastFromApiError(error);
     }
   };
 

@@ -9,7 +9,8 @@ import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage as ChatMessageType } from '@/types/api';
-import ApiDebug from '@/components/debug/ApiDebug';
+// import ApiDebug from '@/components/debug/ApiDebug';
+import { toastFromApiError } from '@/lib/toast-helpers';
 
 const PROMPT_SUGGESTIONS = [
   { icon: '⚡', text: 'Explain electrical load calculations for a 2000 sq ft residential building' },
@@ -49,6 +50,7 @@ export default function ChatPage() {
       setMessages(data);
     } catch (error) {
       console.error('Failed to load messages:', error);
+      toastFromApiError(error);
     }
   }, [currentSession, setMessages]);
 
@@ -87,11 +89,11 @@ export default function ChatPage() {
             // Redirect to login if auth failed
             router.push('/login?error=session_expired');
           } else {
-            // Show error toast or alert for other errors
-            alert(`Failed to start chat: ${error.message}`);
+            // Show error toast for other errors
+            toastFromApiError(error);
           }
         } else {
-          alert('Failed to start chat. Please try again.');
+          toastFromApiError(new Error('Failed to start chat. Please try again.'));
         }
         return;
       }
@@ -147,6 +149,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to send message:', error);
       updateMessage(tempAiMessageId, 'Sorry, I encountered an error processing your request.');
+      toastFromApiError(error);
       setIsStreaming(false);
       setStreamingMessageId(null);
     }
@@ -244,10 +247,10 @@ export default function ChatPage() {
       </div>
 
       {/* Debug Section */}
-      <ApiDebug />
+      {/* <ApiDebug /> */}
       
       {/* Session Debug Info */}
-      <div className="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded-lg shadow-lg z-50 max-w-md text-xs">
+      {/* <div className="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded-lg shadow-lg z-50 max-w-md text-xs">
         <h3 className="font-bold mb-2">Session Debug</h3>
         <div className="space-y-1">
           <p><span className="text-yellow-400">Auth Status:</span> {status}</p>
@@ -264,7 +267,7 @@ export default function ChatPage() {
             </pre>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 } 
