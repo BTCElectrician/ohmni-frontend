@@ -2,9 +2,10 @@
 
 ## 🚀 Quick Status Check
 **Last Updated**: 2025-06-22  
-**Current Phase**: Ready for Phase 1 (React Query)  
+**Current Phase**: Phase 1 Complete ✅ - Ready for Phase 2 (Toast Notifications)  
 **Health Check**: ✅ Working - `curl http://localhost:3000/api/health`  
 **Git Status**: All changes committed  
+**React Query**: ✅ Implemented with DevTools  
 
 ## Overview
 This document tracks the safe, incremental upgrades to bring our MVP codebase closer to the architecture described in `api_integration_guide.md`.
@@ -685,7 +686,14 @@ Before EVERY deployment:
   - ✅ 503 error handling for missing backend URL
   - ✅ Tested locally and working: `{"status":"ok","frontend":"local","backend":"https://ohmni-backend.onrender.com"}`
   - ✅ Committed to git repo
-- [ ] Phase 1: React Query with DevTools
+- [x] **Phase 1: React Query with DevTools** ✅ **COMPLETED 2025-06-22**
+  - ✅ Created QueryProvider with expert settings (60s stale time, 5min cache, smart retry)
+  - ✅ Added to layout.tsx inside SessionProvider
+  - ✅ DevTools only in development mode
+  - ✅ Created `useChatSessions()` hook wrapping existing service
+  - ✅ Enhanced ChatSidebar with React Query + fallback logic
+  - ✅ Build passes with no TypeScript errors
+  - ✅ Committed to git repo
 - [ ] Phase 2: Toast Notifications with helpers
 - [ ] Phase 3: Centralized Auth with refresh
 - [ ] Phase 4: File Upload with progress
