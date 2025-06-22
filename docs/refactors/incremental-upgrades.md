@@ -25,11 +25,15 @@ This document tracks the safe, incremental upgrades to bring our MVP codebase cl
 For EVERY phase, ALWAYS:
 1. **CREATE FEATURE BRANCH FIRST**: `git checkout -b feature/phase-name`
 2. Make all changes on the feature branch
-3. Push to get preview URL: `git push origin feature/phase-name`
-4. Test thoroughly on preview deployment
-5. Only merge to main after preview testing passes
+3. **TEST LOCALLY FIRST**: Run `npm run dev` and thoroughly test all changes
+4. **BUILD LOCALLY**: Run `npm run build` to catch any compilation errors
+5. Only commit after local testing passes
+6. Push to get preview URL: `git push origin feature/phase-name`
+7. Test thoroughly on preview deployment (if possible)
+8. Only merge to main after all testing passes
 
 **NEVER make changes directly on main branch!**
+**NEVER commit without testing locally first!**
 
 ---
 
