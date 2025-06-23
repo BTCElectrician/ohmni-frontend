@@ -1,17 +1,92 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, Folder, Trash2 } from 'lucide-react';
+import { PlusCircle, Folder, Trash2, PencilIcon } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
 import { ChatSession } from '@/types/api';
 import { useChatSessions } from '@/app/hooks/useChatSessions';
-import { toastFromApiError } from '@/lib/toast-helpers';
+import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
+import { useQueryClient } from '@tanstack/react-query';
+
+// Editable Session Name Component
+function EditableSessionName({ 
+  session, 
+  onUpdate,
+  isActive 
+}: { 
+  session: ChatSession, 
+  onUpdate: (id: string, name: string) => void,
+  isActive: boolean
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(session.name);
+
+  // Update local name when session prop changes
+  useEffect(() => {
+    setName(session.name);
+  }, [session.name]);
+
+  const handleSave = async () => {
+    if (name.trim() && name !== session.name) {
+      try {
+        await onUpdate(session.id, name.trim());
+        toastSuccess('Session renamed successfully');
+      } catch (error) {
+        console.error('Failed to rename session:', error);
+        toastFromApiError(error);
+        setName(session.name); // Revert on error
+      }
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setName(session.name);
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-1 min-w-0 group">
+      {isEditing ? (
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent border-b border-electric-blue/50 focus:outline-none focus:border-electric-blue text-sm text-text-primary px-1 py-0.5"
+          autoFocus
+          maxLength={255}
+        />
+      ) : (
+        <span 
+          className="flex-1 truncate cursor-pointer hover:text-electric-blue text-sm transition-colors"
+          onDoubleClick={() => setIsEditing(true)}
+          title={`${session.name} (Double-click to rename)`}
+        >
+          {session.name}
+        </span>
+      )}
+      <button
+        onClick={() => setIsEditing(!isEditing)}
+        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface-elevated rounded transition-all duration-200"
+        title="Rename session"
+      >
+        <PencilIcon className="w-3 h-3 text-text-secondary hover:text-electric-blue" />
+      </button>
+    </div>
+  );
+}
 
 export function ChatSidebar() {
   const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   
   // PHASE 1: React Query enhancement (optional)
   // If this fails, we'll fall back to the existing manual loading
@@ -93,6 +168,26 @@ export function ChatSidebar() {
     }
   };
 
+  // Session rename handler
+  const handleRenameSession = async (sessionId: string, newName: string) => {
+    try {
+      await chatService.updateSession(sessionId, { name: newName });
+      // Update local state immediately for better UX
+      setSessions(sessions.map(s => 
+        s.id === sessionId ? { ...s, name: newName } : s
+      ));
+      // Also update current session if it's the one being renamed
+      if (currentSession?.id === sessionId) {
+        setCurrentSession({ ...currentSession, name: newName });
+      }
+      // React Query will automatically refetch and update the UI
+      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+    } catch (error) {
+      console.error('Failed to rename session:', error);
+      throw error; // Let the EditableSessionName component handle the error display
+    }
+  };
+
   return (
     <div className="w-[230px] min-w-[230px] bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full overflow-y-auto custom-scrollbar">
       {/* Fixed Top Section */}
@@ -164,10 +259,14 @@ export function ChatSidebar() {
                     : 'hover:bg-surface-elevated'
                 }`}
               >
-                <span className="text-sm truncate flex-1">{session.name}</span>
+                <EditableSessionName 
+                  session={session}
+                  onUpdate={handleRenameSession}
+                  isActive={currentSession?.id === session.id}
+                />
                 <button
                   onClick={(e) => deleteSession(session.id, e)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-400"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-400 ml-1"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>

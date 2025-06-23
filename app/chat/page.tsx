@@ -11,6 +11,7 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage as ChatMessageType } from '@/types/api';
 // import ApiDebug from '@/components/debug/ApiDebug';
 import { toastFromApiError } from '@/lib/toast-helpers';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PROMPT_SUGGESTIONS = [
   { icon: '⚡', text: 'Explain electrical load calculations for a 2000 sq ft residential building' },
@@ -22,6 +23,7 @@ const PROMPT_SUGGESTIONS = [
 export default function ChatPage() {
   const { status } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     currentSession,
     messages,
@@ -103,6 +105,9 @@ export default function ChatPage() {
   };
 
   const sendMessageWithSession = async (sessionId: string, content: string) => {
+    // Check if this is the first message for auto-refresh functionality
+    const isFirstMessage = messages.length === 0;
+    
     // Add user message immediately for better UX
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
@@ -145,6 +150,15 @@ export default function ChatPage() {
       // This will get both the user and AI messages with correct IDs
       if (currentSession) {
         loadMessages();
+      }
+      
+      // If this was the first message, refresh sessions after a delay
+      // to pick up the AI-generated title
+      if (isFirstMessage) {
+        setTimeout(() => {
+          console.log('Refreshing sessions to pick up auto-generated title...');
+          queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+        }, 2000); // Give backend time to generate and save title
       }
     } catch (error) {
       console.error('Failed to send message:', error);

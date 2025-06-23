@@ -120,7 +120,7 @@ export class ChatService {
       console.log('Sending message with centralized auth');
       
       const response = await streamRequest(
-        `/api/chat/${sessionId}/stream`,
+        `/api/chat/sessions/${sessionId}/stream`,
         {
           method: 'POST',
           headers: {
@@ -165,7 +165,13 @@ export class ChatService {
                 throw new Error(data.error);
               }
             } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+              // Silently handle Flask backend context errors during auto-naming
+              // These don't affect the core chat functionality
+              if (e instanceof Error && e.message.includes('application context')) {
+                console.warn('Backend context error (auto-naming may be affected):', e.message);
+              } else {
+                console.error('Failed to parse SSE data:', e);
+              }
             }
           }
         }
