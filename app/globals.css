@@ -152,4 +152,75 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--accent-primary);
   }
+}
+
+/* Markdown Enhancements */
+@layer components {
+  /* Prose customizations for OHMNI theme */
+  .prose pre {
+    @apply bg-deep-navy border border-border-subtle;
+  }
+  
+  .prose code {
+    @apply text-electric-glow;
+  }
+  
+  .prose strong {
+    @apply text-electric-blue font-semibold;
+  }
+  
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
+    @apply text-text-primary font-bold;
+  }
+  
+  .prose table {
+    @apply w-full;
+  }
+  
+  .prose tbody tr:hover {
+    @apply bg-surface-elevated/50;
+  }
+  
+  /* Code block enhancements */
+  .prose pre code {
+    @apply text-text-primary;
+  }
+  
+  /* Scrollbar for code blocks */
+  .prose pre::-webkit-scrollbar {
+    @apply h-2;
+  }
+  
+  .prose pre::-webkit-scrollbar-track {
+    @apply bg-surface-elevated rounded;
+  }
+  
+  .prose pre::-webkit-scrollbar-thumb {
+    @apply bg-border-subtle rounded hover:bg-electric-blue/50;
+  }
+}
+
+/* Highlight.js theme overrides */
+.hljs {
+  @apply bg-transparent !important;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-title {
+  @apply text-electric-blue;
+}
+
+.hljs-string,
+.hljs-number,
+.hljs-literal {
+  @apply text-electric-glow;
+}
+
+.hljs-comment,
+.hljs-quote {
+  @apply text-text-secondary italic;
 } 

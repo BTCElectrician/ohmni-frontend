@@ -1,5 +1,7 @@
 import { ChatMessage as ChatMessageType } from '@/types/api';
 import { useSession } from 'next-auth/react';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { CopyButton } from './CopyButton';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -32,12 +34,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
           
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium mb-1 opacity-80">
-              {isUser ? 'You' : 'OHMNI Oracle'}
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium opacity-80">
+                {isUser ? 'You' : 'OHMNI Oracle'}
+              </div>
+              {!isUser && (
+                <CopyButton text={message.content} />
+              )}
             </div>
-            <div className="prose prose-invert max-w-none">
-              {message.content}
-            </div>
+            <MarkdownRenderer content={message.content} isUser={isUser} />
           </div>
         </div>
       </div>
