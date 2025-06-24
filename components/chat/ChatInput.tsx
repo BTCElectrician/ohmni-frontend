@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Mic, Zap } from 'lucide-react';
+import { Send, Paperclip, Mic, Brain } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -21,16 +21,7 @@ export function ChatInput({
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [deepThinking, setDeepThinking] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [message]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,93 +54,91 @@ export function ChatInput({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-gradient-to-t from-dark-bg via-dark-bg to-transparent">
-      <div className="max-w-[780px] mx-auto">
-        <form
-          onSubmit={handleSubmit}
-          className="glass-card p-4 border-electric-blue/30 shadow-2xl"
-        >
-          {/* Deep Thinking Toggle */}
-          <div className="flex items-center justify-between mb-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={deepThinking}
-                onChange={(e) => setDeepThinking(e.target.checked)}
-                className="w-4 h-4 rounded border-electric-blue/30 bg-surface-elevated checked:bg-electric-blue"
-              />
-              <span className="text-sm text-text-secondary flex items-center gap-1">
-                <Zap className="w-4 h-4" />
-                Deep thinking mode
-              </span>
-            </label>
-          </div>
+    <div className="fixed bottom-0 left-0 right-0 z-40 p-6">
+      <div className="max-w-[900px] mx-auto">
+        <form onSubmit={handleSubmit}>
+          {/* Main container matching the reference design */}
+          <div className="relative bg-[#1a2332]/90 backdrop-blur-sm rounded-2xl border border-[#2d3748]/50 shadow-xl">
+            {/* Input field */}
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message here..."
+              className="w-full bg-transparent text-white placeholder-[#4a5568] focus:outline-none text-[15px] px-6 pt-5 pb-14"
+              disabled={disabled || isStreaming}
+            />
 
-          {/* Input Area */}
-          <div className="flex items-end gap-2">
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about electrical codes, safety, or construction..."
-                className="w-full min-h-[60px] max-h-[200px] p-3 pr-12 bg-surface-elevated border border-border-subtle rounded-lg text-text-primary placeholder-text-secondary resize-none focus:border-electric-blue focus:outline-none focus:ring-2 focus:ring-electric-blue/20"
-                disabled={disabled || isStreaming}
-                rows={1}
-              />
-              
-              {/* Character count */}
-              <div className="absolute bottom-3 right-3 text-xs text-text-secondary">
-                {message.length}/2000
+            {/* Bottom row with icons */}
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 pb-3">
+              {/* Left side - Icon buttons */}
+              <div className="flex items-center gap-1">
+                {/* Voice Record */}
+                <button
+                  type="button"
+                  onClick={handleVoiceRecord}
+                  disabled={disabled || isStreaming}
+                  className={`p-2.5 rounded-lg transition-all ${
+                    isRecording
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+
+                {/* File Upload */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept="image/*,.pdf"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={disabled || isStreaming}
+                  className="p-2.5 rounded-lg bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+
+                {/* Deep Thinking Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setDeepThinking(!deepThinking)}
+                  disabled={disabled || isStreaming}
+                  className={`p-2.5 rounded-lg transition-all ${
+                    deepThinking
+                      ? 'bg-electric-blue/20 text-electric-blue'
+                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Brain className="w-5 h-5" />
+                </button>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              {/* File Upload */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelect}
-                accept="image/*,.pdf"
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={disabled || isStreaming}
-                className="p-3 rounded-lg bg-surface-elevated border border-border-subtle text-text-secondary hover:text-electric-blue hover:border-electric-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-
-              {/* Voice Record */}
-              <button
-                type="button"
-                onClick={handleVoiceRecord}
-                disabled={disabled || isStreaming}
-                className={`p-3 rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isRecording
-                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
-                    : 'bg-surface-elevated border-border-subtle text-text-secondary hover:text-electric-blue hover:border-electric-blue'
-                }`}
-              >
-                <Mic className="w-5 h-5" />
-              </button>
-
-              {/* Send Button */}
+              {/* Right side - Send button */}
               <button
                 type="submit"
                 disabled={!message.trim() || disabled || isStreaming}
-                className="p-3 rounded-lg bg-electric-blue text-white hover:bg-electric-glow transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2.5 text-[#4a5568] hover:text-[#718096] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Deep thinking indicator */}
+            {deepThinking && (
+              <div className="absolute -top-8 left-0 flex items-center gap-2 text-sm text-electric-blue">
+                <Brain className="w-4 h-4 animate-pulse" />
+                <span>Deep thinking mode active</span>
+              </div>
+            )}
           </div>
         </form>
       </div>
     </div>
   );
-} 
+}
