@@ -12,12 +12,10 @@ import { useQueryClient } from '@tanstack/react-query';
 // Editable Session Name Component
 function EditableSessionName({ 
   session, 
-  onUpdate,
-  isActive 
+  onUpdate
 }: { 
   session: ChatSession, 
-  onUpdate: (id: string, name: string) => void,
-  isActive: boolean
+  onUpdate: (id: string, name: string) => void
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(session.name);
@@ -262,7 +260,6 @@ export function ChatSidebar() {
                 <EditableSessionName 
                   session={session}
                   onUpdate={handleRenameSession}
-                  isActive={currentSession?.id === session.id}
                 />
                 <button
                   onClick={(e) => deleteSession(session.id, e)}

@@ -12,12 +12,30 @@ import { ChatMessage as ChatMessageType } from '@/types/api';
 // import ApiDebug from '@/components/debug/ApiDebug';
 import { toastFromApiError } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 const PROMPT_SUGGESTIONS = [
-  { icon: '⚡', text: 'Explain electrical load calculations for a 2000 sq ft residential building' },
-  { icon: '🛡️', text: 'Help me understand OSHA requirements for scaffolding on a commercial project' },
-  { icon: '📋', text: 'Draft a project plan timeline for kitchen renovation with electrical work' },
-  { icon: '♻️', text: 'What are the best practices for managing construction waste?' },
+  { 
+    icon: '⚡', 
+    text: 'Calculate wire size for 100A subpanel 150ft away',
+    category: 'calculations'
+  },
+  { 
+    icon: '🛡️', 
+    text: 'NEC code for kitchen receptacle spacing',
+    category: 'code'
+  },
+  { 
+    icon: '🔍', 
+    text: 'Troubleshoot flickering lights in bathroom',
+    category: 'troubleshooting'
+  },
+  { 
+    icon: '🧮', 
+    text: 'Material list for 200A service upgrade',
+    category: 'planning'
+  },
 ];
 
 export default function ChatPage() {
@@ -37,6 +55,7 @@ export default function ChatPage() {
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
+  const [showPrompts, setShowPrompts] = useState(true);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -68,7 +87,17 @@ export default function ChatPage() {
     }
   }, [currentSession, setMessages, loadMessages, isCreatingNewSession]);
 
+  // Reset prompts when switching to an empty chat
+  useEffect(() => {
+    if (messages.length === 0) {
+      setShowPrompts(true);
+    }
+  }, [messages.length]);
+
   const sendMessage = async (content: string) => {
+    // Hide prompts once user starts chatting
+    setShowPrompts(false);
+    
     if (!currentSession) {
       // Create a new session if none exists
       try {
@@ -195,7 +224,7 @@ export default function ChatPage() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
-        {/* Logout Button - Top Right */}
+        {/* Sign Out Button - Top Right */}
         <button
           onClick={handleLogout}
           className="absolute top-4 right-4 z-50 px-4 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 backdrop-blur-sm"
@@ -207,7 +236,7 @@ export default function ChatPage() {
         <div className="chat-content bg-dark-bg relative overflow-hidden flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
           {/* Background Effect */}
           <div
-            className="absolute inset-0 opacity-[0.07] z-0 pointer-events-none"
+            className="absolute inset-0 opacity-[0.03] z-0 pointer-events-none"
             style={{
               backgroundImage: "url('/images/ohmni-blue-owl-lightning.png')",
               backgroundSize: 'cover',
@@ -217,25 +246,53 @@ export default function ChatPage() {
           {/* Messages Container */}
           <div className="relative z-10 w-full max-w-[780px] mx-auto p-5 pb-[180px]">
             <div className="chat-messages w-full">
-              {/* Prompt Suggestions (shows when no messages) */}
-              {messages.length === 0 && (
-                <div className="glass-card p-6 mb-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">
-                    Suggested Prompts
-                  </h3>
-                  <div className="space-y-3">
+              {/* Empty State with Prompts */}
+              {messages.length === 0 && showPrompts && (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fadeInUp">
+                  {/* Welcome Message */}
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center mb-4">
+                      <Image 
+                        src="/images/perfect-thorr-chatbot.png" 
+                        alt="Ohmni Oracle Owl" 
+                        width={60} 
+                        height={60}
+                        className="animate-pulse"
+                      />
+                    </div>
+                    <h3 className="text-4xl font-extrabold font-montserrat tracking-wide text-electric-blue drop-shadow-[0_2px_12px_rgba(20,157,234,0.5)] mb-2">
+                      Ohmni Oracle
+                    </h3>
+                    <p className="text-text-secondary">
+                      Your electrical brain boost—get instant answers, powered by AI.
+                    </p>
+                  </div>
+
+                  {/* Prompt Pills - Vertical List */}
+                  <div className="flex flex-col gap-3 items-center w-full max-w-lg">
                     {PROMPT_SUGGESTIONS.map((prompt, index) => (
                       <button
                         key={index}
                         onClick={() => handlePromptClick(prompt.text)}
-                        className="w-full text-left p-3 rounded-lg bg-surface-elevated hover:bg-border-subtle transition-colors group"
+                        className="group flex items-center gap-3 w-full px-5 py-3.5 rounded-xl bg-surface-elevated hover:bg-electric-blue/10 border border-border-subtle hover:border-electric-blue/40 transition-all duration-200 hover:translate-x-1"
+                        style={{ animationDelay: `${index * 100}ms` }}
                       >
-                        <span className="mr-3 text-xl">{prompt.icon}</span>
-                        <span className="text-text-secondary group-hover:text-text-primary">
+                        <span className="text-electric-blue group-hover:text-electric-glow transition-colors text-xl flex-shrink-0">
+                          {prompt.icon}
+                        </span>
+                        <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors text-left">
                           {prompt.text}
                         </span>
+                        <svg className="w-4 h-4 text-text-secondary/50 group-hover:text-electric-blue ml-auto flex-shrink-0 transition-all group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Quick tip */}
+                  <div className="mt-8 text-center text-xs text-text-secondary/70">
+                    <p>💡 Tip: You can also type your own question below</p>
                   </div>
                 </div>
               )}
@@ -248,12 +305,43 @@ export default function ChatPage() {
               {/* Streaming Indicator */}
               {isStreaming && streamingMessageId && (
                 <div className="text-center text-text-secondary text-sm animate-pulse">
-                  OHMNI Oracle is thinking...
+                  Ohmni Oracle is thinking...
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* Floating Prompt Trigger (when messages exist) */}
+        {messages.length > 0 && (
+          <button
+            onClick={() => setShowPrompts(!showPrompts)}
+            className="absolute top-20 right-6 p-2 rounded-lg bg-surface-elevated hover:bg-electric-blue/20 border border-border-subtle hover:border-electric-blue/50 transition-all duration-200 group"
+            title="Show suggested prompts"
+          >
+            <Sparkles className="w-5 h-5 text-text-secondary group-hover:text-electric-blue" />
+          </button>
+        )}
+
+        {/* Quick Prompts Bar (when messages exist and showPrompts is true) */}
+        {messages.length > 0 && showPrompts && (
+          <div className="absolute bottom-[140px] left-0 right-0 px-6 z-30">
+            <div className="max-w-[900px] mx-auto">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {PROMPT_SUGGESTIONS.slice(0, 3).map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handlePromptClick(prompt.text)}
+                    className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated/90 hover:bg-electric-blue/20 border border-border-subtle hover:border-electric-blue/50 transition-all duration-200 text-sm backdrop-blur-sm"
+                  >
+                    <span className="text-electric-blue text-base">{prompt.icon}</span>
+                    <span className="text-text-secondary whitespace-nowrap">{prompt.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Fixed Footer with Input */}
         <ChatInput
