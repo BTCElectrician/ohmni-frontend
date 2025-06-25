@@ -33,7 +33,6 @@ export default function ChatPage() {
     updateMessage,
     setIsStreaming,
     setCurrentSession,
-    sessions,
   } = useChatStore();
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -132,25 +131,21 @@ export default function ChatPage() {
     setIsStreaming(true);
 
     try {
-      // Send message and get AI response
-      const aiResponse = await chatService.sendMessage(sessionId, content);
-      
-      // Update the placeholder with the actual AI response
-      // The backend returns the complete AI message with its own ID
-      updateMessage(tempAiMessageId, aiResponse.content || 'Message sent successfully!');
-      
-      // Optionally, we could replace the entire message with the backend version
-      // This would ensure we have the correct ID, timestamp, model info, etc.
-      // But for now, just updating the content is sufficient
+      // Send message with streaming callback
+      await chatService.sendMessage(
+        sessionId, 
+        content,
+        (chunk: string) => {
+          // Update message content as chunks arrive
+          updateMessage(tempAiMessageId, (prev) => prev + chunk);
+        }
+      );
       
       setIsStreaming(false);
       setStreamingMessageId(null);
       
-      // Reload messages to ensure we're in sync with backend
-      // This will get both the user and AI messages with correct IDs
-      if (currentSession) {
-        loadMessages();
-      }
+      // Don't reload messages immediately after streaming completes
+      // The streaming has already updated the message content
       
       // If this was the first message, refresh sessions after a delay
       // to pick up the AI-generated title
