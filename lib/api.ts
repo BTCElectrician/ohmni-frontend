@@ -2,7 +2,6 @@
 
 import { signOut } from 'next-auth/react';
 import { getAccessToken } from './auth/getAccessToken';
-import { toastFromApiError } from './toast-helpers';
 
 // Always use the full backend URL
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmni-backend.onrender.com';
@@ -18,25 +17,7 @@ export class APIError extends Error {
   }
 }
 
-function applyDefaults(options: RequestInit = {}): RequestInit {
-  const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string> || {}),
-  };
 
-  // Auto JSON content-type (non-GET only)
-  if (options.method !== 'GET' && !headers['Content-Type']) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  const hasBearer = Boolean(headers['Authorization']);
-
-  return {
-    ...options,
-    credentials: hasBearer ? 'omit' : 'include', // cookie OR bearer, never both
-    mode: 'cors',
-    headers,
-  };
-}
 
 export async function apiRequest<T = unknown>(
   endpoint: string, 
@@ -85,7 +66,7 @@ export async function apiRequest<T = unknown>(
       try {
         const errorText = await response.text();
         console.error('Backend 500 Error Details:', errorText);
-      } catch (e) {
+      } catch {
         console.error('Could not read error response body');
       }
     }
