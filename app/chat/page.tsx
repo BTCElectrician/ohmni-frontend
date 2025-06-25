@@ -36,6 +36,7 @@ export default function ChatPage() {
   } = useChatStore();
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -57,17 +58,22 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (currentSession) {
-      loadMessages();
+      // Don't load messages if we're in the middle of creating a new session
+      // This prevents overwriting the first message
+      if (!isCreatingNewSession) {
+        loadMessages();
+      }
     } else {
       setMessages([]);
     }
-  }, [currentSession, setMessages, loadMessages]);
+  }, [currentSession, setMessages, loadMessages, isCreatingNewSession]);
 
   const sendMessage = async (content: string) => {
     if (!currentSession) {
       // Create a new session if none exists
       try {
         console.log('No current session, creating new one...');
+        setIsCreatingNewSession(true); // Set flag before creating session
         const session = await chatService.createSession('New Chat');
         console.log('New session created:', session);
         
@@ -79,10 +85,12 @@ export default function ChatPage() {
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
         // Now send the message with the new session
-        sendMessageWithSession(session.id, content);
+        await sendMessageWithSession(session.id, content);
+        setIsCreatingNewSession(false); // Clear flag after message is sent
         return;
       } catch (error) {
         console.error('Failed to create session:', error);
+        setIsCreatingNewSession(false); // Clear flag on error too
         
         // Show user-friendly error
         if (error instanceof Error) {
