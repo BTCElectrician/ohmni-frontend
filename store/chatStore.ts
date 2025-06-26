@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ChatSession, ChatMessage } from '@/types/api';
+import { ChatSession, ChatMessage, QueuedChatAction } from '@/types/api';
 
 interface ChatStore {
   sessions: ChatSession[];
@@ -8,6 +8,7 @@ interface ChatStore {
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
+  offlineQueue: QueuedChatAction[];
   
   // Actions
   setSessions: (sessions: ChatSession[]) => void;
@@ -18,6 +19,8 @@ interface ChatStore {
   setIsLoading: (loading: boolean) => void;
   setIsStreaming: (streaming: boolean) => void;
   setError: (error: string | null) => void;
+  queueAction: (action: QueuedChatAction) => void;
+  clearQueue: () => void;
   reset: () => void;
 }
 
@@ -28,6 +31,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   isLoading: false,
   isStreaming: false,
   error: null,
+  offlineQueue: [],
   
   setSessions: (sessions) => set({ sessions }),
   setCurrentSession: (session) => set({ currentSession: session }),
@@ -43,6 +47,10 @@ export const useChatStore = create<ChatStore>((set) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   setIsStreaming: (streaming) => set({ isStreaming: streaming }),
   setError: (error) => set({ error }),
+  queueAction: (action) => set((state) => ({
+    offlineQueue: [...state.offlineQueue, action]
+  })),
+  clearQueue: () => set({ offlineQueue: [] }),
   reset: () => set({
     sessions: [],
     currentSession: null,
@@ -50,5 +58,6 @@ export const useChatStore = create<ChatStore>((set) => ({
     isLoading: false,
     isStreaming: false,
     error: null,
+    offlineQueue: [],
   }),
 })); 

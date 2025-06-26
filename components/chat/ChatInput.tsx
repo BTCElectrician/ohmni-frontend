@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Send, Paperclip, Mic, Brain } from 'lucide-react';
+import { Brain, Mic, Paperclip, Send, Zap } from 'lucide-react';
 
 interface ChatInputProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean) => void;
   onFileUpload?: (file: File) => void;
   onVoiceRecord?: () => void;
   isStreaming: boolean;
@@ -21,14 +21,30 @@ export function ChatInput({
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [deepThinking, setDeepThinking] = useState(false);
+  const [nuclearThinking, setNuclearThinking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Mutual exclusivity handlers
+  const toggleDeepThinking = () => {
+    const newState = !deepThinking;
+    setDeepThinking(newState);
+    if (newState) setNuclearThinking(false);
+  };
+  
+  const toggleNuclear = () => {
+    const newState = !nuclearThinking;
+    setNuclearThinking(newState);
+    if (newState) setDeepThinking(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (message.trim() && !disabled && !isStreaming) {
-      onSendMessage(message.trim());
+      onSendMessage(message.trim(), deepThinking, nuclearThinking);
       setMessage('');
+      setDeepThinking(false);
+      setNuclearThinking(false);
     }
   };
 
@@ -107,15 +123,35 @@ export function ChatInput({
                 {/* Deep Thinking Toggle */}
                 <button
                   type="button"
-                  onClick={() => setDeepThinking(!deepThinking)}
+                  onClick={toggleDeepThinking}
                   disabled={disabled || isStreaming}
                   className={`p-2.5 rounded-lg transition-all ${
                     deepThinking
-                      ? 'bg-electric-blue/20 text-electric-blue'
+                      ? 'bg-electric-blue/20 text-electric-blue ring-2 ring-electric-blue/30'
                       : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={deepThinking ? 'Deep reasoning mode active (50/day)' : 'Enable deep reasoning mode'}
+                  aria-label={deepThinking ? 'Disable deep reasoning mode' : 'Enable deep reasoning mode (50 uses per day)'}
+                  aria-pressed={deepThinking}
                 >
-                  <Brain className="w-5 h-5" />
+                  <Brain className={`w-5 h-5 ${deepThinking ? 'animate-pulse' : ''}`} />
+                </button>
+
+                {/* Nuclear Mode Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleNuclear}
+                  disabled={disabled || isStreaming}
+                  className={`p-2.5 rounded-lg transition-all ${
+                    nuclearThinking
+                      ? 'bg-red-600/20 text-red-600 ring-2 ring-red-600/30'
+                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={nuclearThinking ? 'Nuclear mode active - o3 model (5/day)' : 'Enable nuclear mode (most powerful)'}
+                  aria-label={nuclearThinking ? 'Disable nuclear mode' : 'Enable nuclear mode - o3 model (5 uses per day)'}
+                  aria-pressed={nuclearThinking}
+                >
+                  <Zap className={`w-5 h-5 ${nuclearThinking ? 'animate-ping' : ''}`} />
                 </button>
               </div>
 
@@ -129,13 +165,32 @@ export function ChatInput({
               </button>
             </div>
 
-            {/* Deep thinking indicator */}
-            {deepThinking && (
-              <div className="absolute -top-8 left-0 flex items-center gap-2 text-sm text-electric-blue">
-                <Brain className="w-4 h-4 animate-pulse" />
-                <span>Deep thinking mode active</span>
-              </div>
-            )}
+            {/* Mode indicators - Responsive positioning */}
+            <div className="absolute -top-8 left-0 right-0 flex items-center gap-4 px-6 pointer-events-none">
+              {deepThinking && (
+                <div className="flex items-center gap-2 text-sm text-electric-blue animate-fadeInUp">
+                  <Brain className="w-4 h-4 animate-pulse" />
+                  <span>Deep thinking mode active</span>
+                </div>
+              )}
+
+              {nuclearThinking && (
+                <div className="flex items-center gap-2 text-sm text-red-600 font-semibold animate-fadeInUp">
+                  <Zap className="w-4 h-4 animate-ping" />
+                  <span>⚠️ Nuclear mode active - Expensive!</span>
+                </div>
+              )}
+            </div>
+
+            {/* Responsive banner for small viewports */}
+            <style jsx>{`
+              @media (max-height: 500px) {
+                .absolute.-top-8 {
+                  top: 100%;
+                  transform: translateY(-1.5rem);
+                }
+              }
+            `}</style>
           </div>
         </form>
       </div>
