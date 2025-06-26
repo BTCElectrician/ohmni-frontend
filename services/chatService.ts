@@ -1,5 +1,5 @@
 import { api, streamRequest, APIError } from '@/lib/api';
-import { ChatSession, ChatMessage } from '@/types/api';
+import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
 
 export class ChatService {
   // Sessions
@@ -115,9 +115,32 @@ export class ChatService {
     }
   }
 
-  async sendMessage(sessionId: string, content: string, onChunk?: (text: string) => void): Promise<ChatMessage> {
+  async sendMessage(
+    sessionId: string, 
+    content: string, 
+    onChunk?: (text: string) => void,
+    useDeepReasoning: boolean = false,
+    useNuclear: boolean = false
+  ): Promise<ChatMessage> {
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    
     try {
-      console.log('Sending message with centralized auth');
+      // Enforce mutual exclusivity
+      if (useDeepReasoning && useNuclear) {
+        console.warn('Cannot use Brain and Nuclear together - prioritizing Nuclear');
+        useDeepReasoning = false;
+      }
+      
+      console.log('Sending message - Deep:', useDeepReasoning, 'Nuclear:', useNuclear);
+      
+      // Build request body
+      const body: {
+        content: string;
+        deep_reasoning?: boolean;
+        preferred_model?: string;
+      } = { content };
+      if (useDeepReasoning) body.deep_reasoning = true;
+      if (useNuclear) body.preferred_model = 'o3';
       
       const response = await streamRequest(
         `/api/chat/sessions/${sessionId}/stream`,
@@ -126,16 +149,36 @@ export class ChatService {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify(body),
         }
-        // Removed skipAuth - using centralized auth
       );
 
       if (!response.ok) {
-        throw new APIError(response.status, response.statusText);
+        // Try to get error message from response body
+        let errorMessage = response.statusText;
+        try {
+          // Clone the response so we can read it as text
+          const clonedResponse = response.clone();
+          const errorText = await clonedResponse.text();
+          
+          // Try to parse as JSON
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorData.message || response.statusText;
+          } catch {
+            // If not JSON, use the text directly if it's not empty
+            if (errorText.trim()) {
+              errorMessage = errorText;
+            }
+          }
+        } catch {
+          // If all parsing fails, use status text
+        }
+        console.error('Stream request failed:', response.status, errorMessage);
+        throw new APIError(response.status, errorMessage);
       }
 
-      const reader = response.body?.getReader();
+      reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');
       }
@@ -143,6 +186,7 @@ export class ChatService {
       const decoder = new TextDecoder();
       let messageBuffer = '';
       let lastMessage: ChatMessage | null = null;
+      let configData: Extract<SSEEventType, { type: 'config' }> | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -154,19 +198,25 @@ export class ChatService {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data: SSEEventType = JSON.parse(line.slice(6));
               
-              if (data.type === 'content') {
-                messageBuffer += data.content;
-                onChunk?.(data.content);
-              } else if (data.type === 'message') {
-                lastMessage = data.message;
-              } else if (data.type === 'error') {
-                throw new Error(data.error);
+              switch (data.type) {
+                case 'config':
+                  // Store configuration data
+                  configData = data;
+                  console.log('Config received:', configData);
+                  break;
+                case 'content':
+                  messageBuffer += data.content;
+                  onChunk?.(data.content);
+                  break;
+                case 'message':
+                  lastMessage = data.message;
+                  break;
+                case 'error':
+                  throw new Error(data.error);
               }
             } catch (e) {
-              // Silently handle Flask backend context errors during auto-naming
-              // These don't affect the core chat functionality
               if (e instanceof Error && e.message.includes('application context')) {
                 console.warn('Backend context error (auto-naming may be affected):', e.message);
               } else {
@@ -177,17 +227,33 @@ export class ChatService {
         }
       }
 
-      // Return the complete message or construct one from the buffer
+      // Return the complete message with metadata
       return lastMessage || {
         id: 'temp-' + Date.now(),
         sessionId: sessionId,
         role: 'assistant',
         content: messageBuffer,
         timestamp: new Date(),
+        metadata: configData ? {
+          deep_reasoning: configData.deep_reasoning || false,
+          nuclear_mode: configData.model === 'o3',  // Renamed from nuclear_reasoning
+          model_used: configData.model,
+          reasoning_remaining: configData.remaining_deep_reasoning,
+          nuclear_remaining: configData.remaining_nuclear
+        } : undefined
       };
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;
+    } finally {
+      // Always release the reader lock
+      if (reader) {
+        try {
+          reader.releaseLock();
+        } catch (e) {
+          console.warn('Failed to release reader lock:', e);
+        }
+      }
     }
   }
 }

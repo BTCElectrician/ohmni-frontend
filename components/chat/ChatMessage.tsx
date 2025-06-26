@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CopyButton } from './CopyButton';
+import { Brain, Zap } from 'lucide-react';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -51,9 +52,29 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 )}
               </div>
               <MarkdownRenderer content={message.content} isUser={isUser} />
-              {!isUser && (
-                <div className="flex justify-end mt-3">
-                  <CopyButton text={message.content} />
+              
+              {/* Mode indicators - only show for AI messages */}
+              {!isUser && message.metadata?.deep_reasoning && (
+                <div className="flex items-center gap-2 mt-3 text-xs text-electric-blue/70">
+                  <Brain className="w-3 h-3" />
+                  <span>Deep reasoning • Model: {message.metadata.model_used || 'Advanced'}</span>
+                  {message.metadata.reasoning_remaining !== undefined && (
+                    <span className="ml-auto">
+                      {message.metadata.reasoning_remaining} uses remaining today
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {!isUser && message.metadata?.nuclear_mode && (
+                <div className="flex items-center gap-2 mt-3 text-xs text-red-600/70">
+                  <Zap className="w-3 h-3" />
+                  <span>Nuclear mode • Model: {message.metadata.model_used || 'o3'}</span>
+                  {message.metadata.nuclear_remaining !== undefined && (
+                    <span className="ml-auto text-red-500">
+                      ⚠️ {message.metadata.nuclear_remaining} nuclear uses left today
+                    </span>
+                  )}
                 </div>
               )}
             </div>

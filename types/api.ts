@@ -38,6 +38,13 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   sessionId: string;
+  metadata?: {
+    deep_reasoning?: boolean;
+    nuclear_mode?: boolean;           // RENAMED from nuclear_reasoning
+    model_used?: string;
+    reasoning_remaining?: number;
+    nuclear_remaining?: number;
+  };
 }
 
 // File Upload Types
@@ -85,5 +92,39 @@ export interface FlaskRegisterResponse {
 export interface FlaskErrorResponse {
   error: string;
   message?: string;
-  details?: any;
+  details?: Record<string, unknown>;
+}
+
+// Add new type for enhanced responses with discriminated union
+export type SSEEventType = 
+  | { type: 'content'; content: string }
+  | { type: 'message'; message: ChatMessage }
+  | { type: 'error'; error: string }
+  | { 
+      type: 'config'; 
+      deep_reasoning?: boolean;
+      model?: string;
+      remaining_deep_reasoning?: number;
+      remaining_nuclear?: number;
+    };
+
+// Add type for offline queue
+export interface QueuedChatAction {
+  id: string;
+  endpoint: string;
+  method: string;
+  data: {
+    content: string;
+    deep_reasoning?: boolean;
+    preferred_model?: string;
+  };
+  timestamp: number;
+}
+
+// Add new type for enhanced responses
+export interface ChatResponseMetadata {
+  deep_reasoning?: boolean;
+  preferred_model?: string;
+  remaining_deep_reasoning?: number;
+  remaining_nuclear?: number;
 } 

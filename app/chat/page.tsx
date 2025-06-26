@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/chatStore';
@@ -10,7 +10,7 @@ import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessage as ChatMessageType } from '@/types/api';
 // import ApiDebug from '@/components/debug/ApiDebug';
-import { toastFromApiError } from '@/lib/toast-helpers';
+import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import Image from 'next/image';
@@ -56,6 +56,10 @@ export default function ChatPage() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
   const [showPrompts, setShowPrompts] = useState(true);
+  const [hasFirstMessage, setHasFirstMessage] = useState(false);
+  
+  // Track quota changes to reduce toast noise
+  const lastQuotaRef = useRef<{ deep?: number; nuclear?: number }>({});
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -94,7 +98,11 @@ export default function ChatPage() {
     }
   }, [messages.length]);
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (
+    content: string, 
+    useDeepReasoning: boolean = false,
+    useNuclear: boolean = false
+  ) => {
     // Hide prompts once user starts chatting
     setShowPrompts(false);
     
@@ -114,7 +122,7 @@ export default function ChatPage() {
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
         // Now send the message with the new session
-        await sendMessageWithSession(session.id, content);
+        await sendMessageWithSession(session.id, content, useDeepReasoning, useNuclear);
         setIsCreatingNewSession(false); // Clear flag after message is sent
         return;
       } catch (error) {
@@ -137,12 +145,20 @@ export default function ChatPage() {
       }
     }
 
-    sendMessageWithSession(currentSession.id, content);
+    sendMessageWithSession(currentSession.id, content, useDeepReasoning, useNuclear);
   };
 
-  const sendMessageWithSession = async (sessionId: string, content: string) => {
-    // Check if this is the first message for auto-refresh functionality
-    const isFirstMessage = messages.length === 0;
+  const sendMessageWithSession = async (
+    sessionId: string, 
+    content: string,
+    useDeepReasoning: boolean = false,
+    useNuclear: boolean = false
+  ) => {
+    // Track first message properly
+    const isFirstMessage = !hasFirstMessage;
+    if (!hasFirstMessage && messages.length > 0) {
+      setHasFirstMessage(true);
+    }
     
     // Add user message immediately for better UX
     const userMessage: ChatMessageType = {
@@ -151,6 +167,11 @@ export default function ChatPage() {
       content,
       timestamp: new Date(),
       sessionId: sessionId,
+      metadata: useNuclear 
+        ? { nuclear_mode: true }
+        : useDeepReasoning 
+          ? { deep_reasoning: true } 
+          : undefined
     };
     addMessage(userMessage);
 
@@ -168,29 +189,59 @@ export default function ChatPage() {
     setIsStreaming(true);
 
     try {
-      // Send message with streaming callback
-      await chatService.sendMessage(
+      const aiResponse = await chatService.sendMessage(
         sessionId, 
-        content,
+        content, 
         (chunk: string) => {
           // Update message content as chunks arrive
           updateMessage(tempAiMessageId, (prev) => prev + chunk);
-        }
+        },
+        useDeepReasoning,
+        useNuclear
       );
+      
+      // The message content should already be updated via streaming
+      // Only update if there's additional content or metadata
+      if (!aiResponse.content) {
+        updateMessage(tempAiMessageId, 'Message sent successfully!');
+      }
+      
+      // Show quota information only if it changed
+      if (aiResponse.metadata?.reasoning_remaining !== undefined && 
+          aiResponse.metadata.reasoning_remaining !== lastQuotaRef.current.deep) {
+        lastQuotaRef.current.deep = aiResponse.metadata.reasoning_remaining;
+        toastSuccess(`Deep reasoning uses remaining today: ${aiResponse.metadata.reasoning_remaining}`);
+      }
+      
+      if (aiResponse.metadata?.nuclear_remaining !== undefined && 
+          aiResponse.metadata.nuclear_remaining !== lastQuotaRef.current.nuclear) {
+        lastQuotaRef.current.nuclear = aiResponse.metadata.nuclear_remaining;
+        toastSuccess(`Nuclear uses remaining today: ${aiResponse.metadata.nuclear_remaining}`);
+      }
+      
+      // Log response metadata for debugging
+      if (aiResponse.metadata) {
+        console.log('Response metadata:', aiResponse.metadata);
+      }
       
       setIsStreaming(false);
       setStreamingMessageId(null);
       
-      // Don't reload messages immediately after streaming completes
-      // The streaming has already updated the message content
+      // Invalidate with proper cache key
+      if (currentSession) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['messages', sessionId, useDeepReasoning, useNuclear] 
+        });
+        loadMessages();
+      }
       
-      // If this was the first message, refresh sessions after a delay
-      // to pick up the AI-generated title
+      // First message session refresh
       if (isFirstMessage) {
+        setHasFirstMessage(true);
         setTimeout(() => {
           console.log('Refreshing sessions to pick up auto-generated title...');
           queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-        }, 2000); // Give backend time to generate and save title
+        }, 2000);
       }
     } catch (error) {
       console.error('Failed to send message:', error);

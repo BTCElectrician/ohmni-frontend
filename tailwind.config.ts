@@ -1,10 +1,24 @@
 import type { Config } from "tailwindcss";
+import typography from '@tailwindcss/typography';
 
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  safelist: [
+    // Ensure these dynamic classes survive purge
+    'bg-electric-blue/20',
+    'text-electric-blue',
+    'ring-electric-blue/30',
+    'bg-red-600/20',
+    'text-red-600',
+    'ring-red-600/30',
+    'text-red-500',
+    'animate-ping',
+    'animate-pulse',
+    'animate-fade-in-up',
   ],
   theme: {
     extend: {
@@ -34,9 +48,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/typography'),
-  ],
+  plugins: [typography],
 };
 
 export default config; 
