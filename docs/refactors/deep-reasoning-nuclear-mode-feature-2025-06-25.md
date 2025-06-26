@@ -16,7 +16,7 @@ This plan adds both deep reasoning (Brain) and nuclear (o3) functionality to the
 | Button | Icon | Label | Payload | Backend Field | Error Code | Daily Limit |
 |--------|------|-------|---------|---------------|------------|-------------|
 | Brain | 🧠 | Deep Reasoning | `deep_reasoning: true` | `remaining_deep_reasoning` | `deep_reasoning_limit_exceeded` | 50/day |
-| Nuclear | ⚡ | Nuclear Mode | `preferred_model: "o3"` | `remaining_nuclear` | `nuclear_limit_exceeded` | 5/day |
+| Nuclear | ☢️ | Nuclear Mode | `preferred_model: "o3"` | `remaining_nuclear` | `nuclear_limit_exceeded` | 5/day |
 
 **Important**: Brain and Nuclear are mutually exclusive - only one can be active at a time.
 
@@ -81,7 +81,7 @@ export interface ChatResponseMetadata {
 Add to the existing imports at the top of the file:
 
 ```typescript
-import { Brain, Mic, Paperclip, Send, Zap } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send } from 'lucide-react';
 // Note: Icons are alphabetized to prevent lint issues
 ```
 
@@ -305,8 +305,8 @@ export function ChatInput({
 
               {nuclearThinking && (
                 <div className="flex items-center gap-2 text-sm text-red-600 font-semibold animate-fadeInUp">
-                  <Zap className="w-4 h-4 animate-ping" />
-                  <span>⚠️ Nuclear mode active - Expensive!</span>
+                  <Radiation className="w-4 h-4 animate-pulse" />
+                  <span>☢️ Nuclear mode active - Expensive!</span>
                 </div>
               )}
             </div>
@@ -401,7 +401,7 @@ export function ChatInput({
                   aria-label={nuclearThinking ? 'Disable nuclear mode' : 'Enable nuclear mode - o3 model (5 uses per day)'}
                   aria-pressed={nuclearThinking}
                 >
-                  <Zap className={`w-5 h-5 ${nuclearThinking ? 'animate-ping' : ''}`} />
+                  <Radiation className={`w-5 h-5 ${nuclearThinking ? 'animate-pulse' : ''}`} />
                 </button>
               </div>
 
@@ -599,7 +599,7 @@ export const toastFromApiError = (error: unknown) => {
     else if (error.message.includes('nuclear_limit_exceeded')) {
       toast.error('Daily nuclear limit reached (5/day). This is an expensive model!', {
         duration: 5000,
-        icon: '⚡',
+        icon: '☢️',
       });
     }
     // Standard errors
@@ -637,7 +637,7 @@ import { ChatMessage as ChatMessageType } from '@/types/api';
 import { useSession } from 'next-auth/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CopyButton } from './CopyButton';
-import { Brain, Zap } from 'lucide-react';
+import { Brain, Radiation } from 'lucide-react';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -696,11 +696,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
               {!isUser && message.metadata?.nuclear_mode && (
                 <div className="flex items-center gap-2 mt-3 text-xs text-red-600/70">
-                  <Zap className="w-3 h-3" />
+                  <Radiation className="w-3 h-3" />
                   <span>Nuclear mode • Model: {message.metadata.model_used || 'o3'}</span>
                   {message.metadata.nuclear_remaining !== undefined && (
                     <span className="ml-auto text-red-500">
-                      ⚠️ {message.metadata.nuclear_remaining} nuclear uses left today
+                      ☢️ {message.metadata.nuclear_remaining} nuclear uses left today
                     </span>
                   )}
                 </div>
@@ -808,7 +808,6 @@ const config: Config = {
     'text-red-600',
     'ring-red-600/30',
     'text-red-500',
-    'animate-ping',
     'animate-pulse',
     'animate-fadeInUp',
   ],
@@ -961,5 +960,14 @@ If issues arise, you can disable features without removing code:
 6. **Cost awareness** - Nuclear mode clearly indicates expense
 7. **Accessibility** - Full keyboard and screen reader support
 8. **Performance** - Minimal bundle size impact from icons
+9. **Icon choice** - Radiation symbol (☢️) chosen over lightning (⚡) for better visual metaphor and universal recognition of nuclear/atomic power
+
+## Why Radiation Icon?
+
+The radiation icon (☢️) is superior to the lightning bolt for Nuclear Mode because:
+- **Universal Recognition** - The radiation symbol is globally understood as representing nuclear/atomic power
+- **Better Visual Weight** - The three-segment design is more visually distinct
+- **Appropriate Warning** - The radiation symbol inherently conveys caution/expense
+- **Theme Consistency** - Works better with the red color scheme for "dangerous/expensive" operations
 
 This completes the production-ready refactor plan with all improvements incorporated.

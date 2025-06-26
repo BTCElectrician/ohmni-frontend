@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Brain, Mic, Paperclip, Send, Zap } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean) => void;
@@ -151,7 +151,7 @@ export function ChatInput({
                   aria-label={nuclearThinking ? 'Disable nuclear mode' : 'Enable nuclear mode - o3 model (5 uses per day)'}
                   aria-pressed={nuclearThinking}
                 >
-                  <Zap className={`w-5 h-5 ${nuclearThinking ? 'animate-ping' : ''}`} />
+                  <Radiation className={`w-5 h-5 ${nuclearThinking ? 'animate-pulse' : ''}`} />
                 </button>
               </div>
 
@@ -176,8 +176,8 @@ export function ChatInput({
 
               {nuclearThinking && (
                 <div className="flex items-center gap-2 text-sm text-red-600 font-semibold animate-fadeInUp">
-                  <Zap className="w-4 h-4 animate-ping" />
-                  <span>⚠️ Nuclear mode active - Expensive!</span>
+                  <Radiation className="w-4 h-4 animate-pulse" />
+                  <span>☢️ Nuclear mode active - Expensive!</span>
                 </div>
               )}
             </div>

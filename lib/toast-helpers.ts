@@ -24,7 +24,7 @@ export const toastFromApiError = (error: unknown) => {
     else if (error.message.includes('nuclear_limit_exceeded')) {
       toast.error('Daily nuclear limit reached (5/day). This is an expensive model!', {
         duration: 5000,
-        icon: '⚡',
+        icon: '☢️',
       });
     }
     // Temporary handler for generic 429 errors
