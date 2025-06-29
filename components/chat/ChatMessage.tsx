@@ -3,7 +3,8 @@ import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CopyButton } from './CopyButton';
-import { Brain, Radiation } from 'lucide-react';
+import { Brain, Radiation, ImageIcon, Maximize2, X } from 'lucide-react';
+import { useState } from 'react';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -12,6 +13,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const { data: session } = useSession();
   const isUser = message.role === 'user';
+  const [showFullImage, setShowFullImage] = useState(false);
 
   return (
     <div className={`message-wrapper mb-6 ${isUser ? 'flex justify-end' : ''}`}>
@@ -51,6 +53,41 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <CopyButton text={message.content} />
                 )}
               </div>
+
+              {/* Image Attachments */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="mb-3">
+                  {message.attachments.map((attachment, index) => (
+                    <div key={index} className="relative group">
+                      {attachment.type === 'image' && attachment.url && (
+                        <>
+                          <div 
+                            className="relative overflow-hidden rounded-lg border border-border-subtle cursor-pointer"
+                            onClick={() => setShowFullImage(true)}
+                          >
+                            <img
+                              src={attachment.url}
+                              alt={attachment.filename}
+                              className="max-w-full max-h-[400px] object-contain"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                              <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-text-secondary">
+                            <ImageIcon className="w-3 h-3" />
+                            <span>{attachment.filename}</span>
+                            {attachment.size && (
+                              <span>({(attachment.size / 1024 / 1024).toFixed(1)}MB)</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <MarkdownRenderer content={message.content} isUser={isUser} />
               
               {/* Mode indicators - only show for AI messages */}
@@ -81,6 +118,26 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
         </div>
       </div>
+
+      {/* Full Image Modal */}
+      {showFullImage && message.attachments?.[0]?.url && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setShowFullImage(false)}
+        >
+          <img
+            src={message.attachments[0].url}
+            alt={message.attachments[0].filename}
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+            onClick={() => setShowFullImage(false)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
     </div>
   );
 } 

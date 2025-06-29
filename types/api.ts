@@ -32,6 +32,22 @@ export interface ChatSession {
   // Removed updated_at - backend doesn't have this field
 }
 
+// Vision Analysis Types
+export interface VisionAnalysis {
+  id: string;
+  analysis: string;
+  timestamp: string; // ISO string from backend
+  metadata?: {
+    drawing_type?: string;
+    confidence?: number;
+    file_info?: {
+      filename: string;
+      size: number;
+      type: string;
+    };
+  };
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -45,6 +61,14 @@ export interface ChatMessage {
     reasoning_remaining?: number;
     nuclear_remaining?: number;
   };
+  // ADD THIS:
+  attachments?: {
+    type: 'image' | 'pdf'; // Future-proof with discriminated union
+    url?: string; // Base64 or temporary URL
+    filename: string;
+    size?: number;
+    analysis?: VisionAnalysis;
+  }[];
 }
 
 // File Upload Types
@@ -55,6 +79,18 @@ export interface UploadedFile {
   type: string;
   url?: string;
   uploaded_at: string;
+}
+
+// Add file upload response type
+export interface UploadResponse {
+  message: string;
+  user_message_id: string;
+  file_info: {
+    filename: string;
+    size: number;
+    type: string;
+  };
+  preview_url: string; // Base64 data URL
 }
 
 // Knowledge Base Types
@@ -106,7 +142,8 @@ export type SSEEventType =
       model?: string;
       remaining_deep_reasoning?: number;
       remaining_nuclear?: number;
-    };
+    }
+  | { type: 'vision_start'; message: string }; // ADD THIS
 
 // Add type for offline queue
 export interface QueuedChatAction {
@@ -117,6 +154,7 @@ export interface QueuedChatAction {
     content: string;
     deep_reasoning?: boolean;
     preferred_model?: string;
+    file?: File; // ADD THIS for offline file queueing
   };
   timestamp: number;
 }

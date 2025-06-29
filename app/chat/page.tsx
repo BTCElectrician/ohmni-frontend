@@ -148,6 +148,50 @@ export default function ChatPage() {
     sendMessageWithSession(currentSession.id, content, useDeepReasoning, useNuclear);
   };
 
+  const sendMessageWithFile = async (content: string, file: File) => {
+    if (!currentSession) {
+      // Create session if needed (same as regular sendMessage)
+      try {
+        setIsCreatingNewSession(true);
+        const session = await chatService.createSession('New Chat');
+        setCurrentSession(session);
+        await sendMessageWithFileToSession(session.id, content, file);
+        setIsCreatingNewSession(false);
+      } catch (error) {
+        setIsCreatingNewSession(false);
+        toastFromApiError(error);
+      }
+      return;
+    }
+
+    await sendMessageWithFileToSession(currentSession.id, content, file);
+  };
+
+  const sendMessageWithFileToSession = async (
+    sessionId: string,
+    content: string,
+    file: File
+  ) => {
+    try {
+      // Add user message with file
+      const userMessage = await chatService.sendMessageWithFile(
+        sessionId,
+        content,
+        file
+      );
+      
+      // Add to messages immediately
+      addMessage(userMessage);
+      
+      // The AI response will come through the existing SSE stream
+      // No additional handling needed here
+      
+    } catch (error) {
+      console.error('Failed to send image:', error);
+      toastFromApiError(error);
+    }
+  };
+
   const sendMessageWithSession = async (
     sessionId: string, 
     content: string,
@@ -397,6 +441,7 @@ export default function ChatPage() {
         {/* Fixed Footer with Input */}
         <ChatInput
           onSendMessage={sendMessage}
+          onSendMessageWithFile={sendMessageWithFile}
           isStreaming={isStreaming}
           disabled={false}
         />

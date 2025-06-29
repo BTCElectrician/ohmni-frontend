@@ -1,5 +1,6 @@
 import { api, streamRequest, APIError } from '@/lib/api';
 import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
+import { visionService } from './visionService';
 
 export class ChatService {
   // Sessions
@@ -255,6 +256,40 @@ export class ChatService {
         }
       }
     }
+  }
+
+  async sendMessageWithFile(
+    sessionId: string,
+    content: string,
+    file: File
+  ): Promise<ChatMessage> {
+    // First, upload the file
+    const uploadResponse = await visionService.uploadToChat(
+      sessionId,
+      file,
+      content
+    );
+    
+    // The user message is already created by backend
+    // Now we just listen to the SSE stream for the AI response
+    
+    // Create a temporary message with the attachment for immediate display
+    const userMessage: ChatMessage = {
+      id: uploadResponse.user_message_id,
+      sessionId: sessionId,
+      role: 'user',
+      content: content || 'Please analyze this image',
+      timestamp: new Date(),
+      attachments: [{
+        type: 'image',
+        url: uploadResponse.preview_url,
+        filename: uploadResponse.file_info.filename,
+        size: uploadResponse.file_info.size
+      }]
+    };
+    
+    // Return the user message - streaming will handle the AI response
+    return userMessage;
   }
 }
 
