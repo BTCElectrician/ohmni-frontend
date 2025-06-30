@@ -81,16 +81,32 @@ export interface UploadedFile {
   uploaded_at: string;
 }
 
-// Add file upload response type
+// Add file upload response type - matches actual backend response
 export interface UploadResponse {
   message: string;
-  user_message_id: string;
-  file_info: {
-    filename: string;
-    size: number;
-    type: string;
+  file: {
+    id: string;
+    file_path: string;
+    extracted_text?: string;
+    analysis_metadata?: {
+      ai_analysis?: {
+        analysis: string;
+        model_used: string;
+        success: boolean;
+      };
+      analyzed_at?: string;
+    };
+    azure_search_indexed?: boolean;
+    created_at?: string;
   };
-  preview_url: string; // Base64 data URL
+  file_info: {
+    file_id: string;
+    filename: string;
+    file_size: number;
+    file_type: string;
+    mime_type: string;
+  };
+  // Note: Backend doesn't return user_message_id or preview_url
 }
 
 // Knowledge Base Types

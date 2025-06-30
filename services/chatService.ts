@@ -282,17 +282,18 @@ export class ChatService {
     );
     
     // Create user message with attachment info
+    // Note: Backend doesn't return user_message_id, so we generate one
     const userMessage: ChatMessage = {
-      id: uploadResponse.user_message_id,
+      id: uploadResponse.file_info?.file_id || `temp-${Date.now()}`,
       sessionId: sessionId,
       role: 'user',
       content: content || 'Please analyze this image',
       timestamp: new Date(),
       attachments: [{
         type: 'image',
-        url: uploadResponse.preview_url,
-        filename: uploadResponse.file_info.filename,
-        size: uploadResponse.file_info.size
+        url: URL.createObjectURL(file), // Create local preview since backend doesn't provide one
+        filename: uploadResponse.file_info?.filename || file.name,
+        size: uploadResponse.file_info?.file_size || file.size
       }]
     };
     

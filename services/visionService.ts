@@ -122,16 +122,15 @@ export class VisionService {
       formData.append('message', message);
     }
 
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/sessions/${sessionId}/upload`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${await getAccessToken()}`,
-        },
-        body: formData,
-      }
-    );
+    const uploadUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/sessions/${sessionId}/upload`;
+    
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${await getAccessToken()}`,
+      },
+      body: formData,
+    });
 
     if (!response.ok) {
       const error = await response.json();
