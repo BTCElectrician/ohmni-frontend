@@ -116,7 +116,7 @@ export class ChatService {
     }
   }
 
-  async sendMessage(
+  private async streamVisionResponse(
     sessionId: string, 
     content: string, 
     onChunk?: (text: string) => void,
@@ -258,22 +258,30 @@ export class ChatService {
     }
   }
 
+  async sendMessage(
+    sessionId: string, 
+    content: string, 
+    onChunk?: (text: string) => void,
+    useDeepReasoning: boolean = false,
+    useNuclear: boolean = false
+  ): Promise<ChatMessage> {
+    // Simply delegate to the private streaming method
+    return this.streamVisionResponse(sessionId, content, onChunk, useDeepReasoning, useNuclear);
+  }
+
   async sendMessageWithFile(
     sessionId: string,
     content: string,
     file: File
   ): Promise<ChatMessage> {
-    // First, upload the file
+    // Upload the file
     const uploadResponse = await visionService.uploadToChat(
       sessionId,
       file,
       content
     );
     
-    // The user message is already created by backend
-    // Now we just listen to the SSE stream for the AI response
-    
-    // Create a temporary message with the attachment for immediate display
+    // Create user message with attachment info
     const userMessage: ChatMessage = {
       id: uploadResponse.user_message_id,
       sessionId: sessionId,
@@ -288,8 +296,25 @@ export class ChatService {
       }]
     };
     
-    // Return the user message - streaming will handle the AI response
     return userMessage;
+  }
+  
+  // New method specifically for triggering vision streaming after upload
+  async streamVisionAnalysis(
+    sessionId: string,
+    content: string,
+    onChunk?: (text: string) => void,
+    useDeepReasoning: boolean = false,
+    useNuclear: boolean = false
+  ): Promise<ChatMessage> {
+    // Call the streaming endpoint which should pick up the pending image
+    return this.streamVisionResponse(
+      sessionId,
+      content || 'Please analyze this image',
+      onChunk,
+      useDeepReasoning,
+      useNuclear
+    );
   }
 }
 

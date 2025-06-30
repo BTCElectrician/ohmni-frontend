@@ -173,18 +173,56 @@ export default function ChatPage() {
     file: File
   ) => {
     try {
-      // Add user message with file
+      // 1. Upload file and add user message
       const userMessage = await chatService.sendMessageWithFile(
         sessionId,
         content,
         file
       );
       
-      // Add to messages immediately
       addMessage(userMessage);
       
-      // The AI response will come through the existing SSE stream
-      // No additional handling needed here
+      // 2. Create AI message placeholder
+      const tempAiMessageId = (Date.now() + 1).toString();
+      const aiMessagePlaceholder: ChatMessageType = {
+        id: tempAiMessageId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        sessionId: sessionId,
+      };
+      addMessage(aiMessagePlaceholder);
+      setStreamingMessageId(tempAiMessageId);
+      setIsStreaming(true);
+      
+      // 3. Trigger vision analysis streaming
+      try {
+        const aiResponse = await chatService.streamVisionAnalysis(
+          sessionId,
+          content,
+          (chunk: string) => {
+            updateMessage(tempAiMessageId, (prev) => prev + chunk);
+          }
+        );
+        
+        // 4. Update with final content if needed
+        if (aiResponse.content && !aiResponse.content.includes('Message sent successfully')) {
+          updateMessage(tempAiMessageId, aiResponse.content);
+        }
+        
+        // 5. Handle metadata (quotas) if present
+        if (aiResponse.metadata?.reasoning_remaining !== undefined) {
+          toastSuccess(`Deep reasoning uses remaining today: ${aiResponse.metadata.reasoning_remaining}`);
+        }
+        
+      } catch (error) {
+        console.error('Vision analysis failed:', error);
+        updateMessage(tempAiMessageId, 'Sorry, I couldn\'t analyze the image. Please try again.');
+        toastFromApiError(error);
+      } finally {
+        setIsStreaming(false);
+        setStreamingMessageId(null);
+      }
       
     } catch (error) {
       console.error('Failed to send image:', error);
