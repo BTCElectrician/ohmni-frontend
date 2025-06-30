@@ -149,6 +149,9 @@ export default function ChatPage() {
   };
 
   const sendMessageWithFile = async (content: string, file: File) => {
+    // Hide prompts when sending file (same as regular messages)
+    setShowPrompts(false);
+    
     if (!currentSession) {
       // Create session if needed (same as regular sendMessage)
       try {

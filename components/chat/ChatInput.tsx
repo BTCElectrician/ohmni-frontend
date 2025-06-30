@@ -260,7 +260,7 @@ export function ChatInput({
               <button
                 type="submit"
                 disabled={(!message.trim() && !selectedFile) || disabled || isStreaming || isProcessingFile}
-                className="p-2.5 text-[#4a5568] hover:text-[#718096] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2.5 rounded-lg transition-all transform active:scale-95 active:bg-electric-blue/20 text-[#4a5568] hover:text-electric-blue hover:bg-[#2d3748]/70 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 <Send className="w-5 h-5" />
               </button>
