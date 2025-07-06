@@ -1,11 +1,6 @@
 ---
-id: "ci-deploy"
-priority: 700
-scope: ["agent"]
-when:
-  paths: ["**/*.yml", "**/*.yaml", "**/*.json", "package.json", "*.md"]
+alwaysApply: true
 ---
-
 # 🚀 CI/CD & Deployment
 
 * **Frontend Deploy**  Vercel (auto-deploy from `main`)
