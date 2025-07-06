@@ -116,6 +116,22 @@ export class VisionService {
     file: File,
     message?: string
   ): Promise<UploadResponse> {
+    // Step 1: Add Debug Code FIRST
+    console.log("UPLOAD ATTEMPT:", {
+      url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/sessions/${sessionId}/upload`,
+      sessionId,
+      fileName: file.name,
+      fileSize: file.size
+    });
+
+    console.log('🚀 Starting image upload...', {
+      sessionId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      message: message || 'No message provided'
+    });
+
     const formData = new FormData();
     formData.append('file', file);
     if (message) {
@@ -123,21 +139,50 @@ export class VisionService {
     }
 
     const uploadUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chat/sessions/${sessionId}/upload`;
+    console.log('📤 Upload URL:', uploadUrl);
+    console.log('🔑 Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
     
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${await getAccessToken()}`,
-      },
-      body: formData,
-    });
+    try {
+      const accessToken = await getAccessToken();
+      console.log('🔐 Access token obtained:', accessToken ? 'Yes' : 'No');
+      
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      console.log('📡 Upload response status:', response.status);
+      console.log('📡 Upload response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Upload failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        
+        throw new Error(errorData.error || `Upload failed: ${response.status} ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('✅ Upload successful:', responseData);
+      
+      return responseData;
+    } catch (error) {
+      console.error('💥 Upload error:', error);
+      throw error;
     }
-
-    return response.json();
   }
 }
 
