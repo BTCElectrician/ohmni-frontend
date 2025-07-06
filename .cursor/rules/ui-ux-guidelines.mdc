@@ -1,6 +1,12 @@
 ---
-alwaysApply: false
+id: "ui-ux-guidelines"
+priority: 800
+scope: ["agent"]
+when:
+  paths: ["**/*.tsx", "**/*.css", "**/*.scss"]
+  languages: ["typescript", "tsx", "css", "scss"]
 ---
+
 # 🎨 UI / A11y Guardrails
 
 * **Palette**  Primary `#149DEA` · Success `#10B981` · Warning `#F59E0B` · Error `#EF4444`

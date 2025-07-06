@@ -1,6 +1,12 @@
 ---
-alwaysApply: false
+id: "style-guide"
+priority: 750
+scope: ["agent", "ask"]
+when:
+  paths: ["**/*.ts", "**/*.tsx", "**/*.py"]
+  languages: ["typescript", "tsx", "python"]
 ---
+
 # ✨ Coding Conventions
 
 * **TypeScript**  `strict: true`, no `any`, explicit generics.  

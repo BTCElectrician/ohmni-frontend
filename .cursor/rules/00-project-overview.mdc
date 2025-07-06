@@ -1,6 +1,11 @@
 ---
-alwaysApply: true
+id: "project-overview"
+priority: 1000
+scope: ["agent", "ask"]
+when:
+  paths: ["**/*"]
 ---
+
 # ABCO AI — Ohmni Monorepo
 
 * **Mission**  Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI chat, uploads, notes).

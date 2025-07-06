@@ -1,6 +1,12 @@
 ---
-alwaysApply: false
+id: "backend-stack"
+priority: 850
+scope: ["agent"]
+when:
+  paths: ["backend/**", "api/**", "integrations/**", "services/**", "models/**"]
+  languages: ["python"]
 ---
+
 # 🐍 Flask 3.1 API – Ohmni Backend Canon
 
 * **Runtime**  Python 3.11   (gunicorn 23.0 `-k sync`, app factory `app_minimal:create_app`)

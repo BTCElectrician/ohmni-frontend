@@ -1,16 +1,28 @@
 ---
-alwaysApply: false
+id: "ci-deploy"
+priority: 700
+scope: ["agent"]
+when:
+  paths: ["**/*.yml", "**/*.yaml", "**/*.json", "package.json", "*.md"]
 ---
-# 🚦 CI / Deployment Checklist
 
-1. **Tests**
-   ```bash
-   pnpm --filter frontend test
-   pytest -q
-Static analysis pnpm type-check · ruff check backend/
+# 🚀 CI/CD & Deployment
 
-Build NEXT_PUBLIC_BACKEND_URL set for Vercel preview.
-
-Bundle budget front-end < 250 kB gzipped; prefer dynamic imports.
-
-Rule snapshot CI fails if .cursor/rules/** changed & snapshot missing.
+* **Frontend Deploy**  Vercel (auto-deploy from `main`)
+* **Backend Deploy**   Render.com (Flask + gunicorn)
+* **CI Pipeline**      GitHub Actions
+* **Key Commands**
+  ```bash
+  # Frontend
+  pnpm build && pnpm start
+  pnpm lint && pnpm type-check
+  
+  # Backend  
+  flask db upgrade
+  gunicorn -c gunicorn.conf.py main:app
+  ```
+* **Deploy Rules**
+  1. All tests must pass before merge to `main`
+  2. Frontend builds are automatically deployed to Vercel
+  3. Backend requires manual deployment trigger on Render
+  4. Database migrations run automatically on deploy
