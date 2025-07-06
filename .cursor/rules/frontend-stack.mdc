@@ -1,10 +1,5 @@
 ---
-id: "frontend-stack"
-priority: 900
-scope: ["agent"]
-when:
-  paths: ["frontend/**", "app/**", "components/**", "hooks/**"]
-  languages: ["typescript", "tsx", "css", "js"]
+alwaysApply: true
 ---
 
 # 📱 Front-End Canon

@@ -1,10 +1,5 @@
 ---
-id: "style-guide"
-priority: 750
-scope: ["agent", "ask"]
-when:
-  paths: ["**/*.ts", "**/*.tsx", "**/*.py"]
-  languages: ["typescript", "tsx", "python"]
+alwaysApply: true
 ---
 
 # ✨ Coding Conventions

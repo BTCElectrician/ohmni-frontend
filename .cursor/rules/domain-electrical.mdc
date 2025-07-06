@@ -1,10 +1,5 @@
 ---
-id: "backend-stack"
-priority: 850
-scope: ["agent"]
-when:
-  paths: ["backend/**", "api/**", "integrations/**", "services/**", "models/**"]
-  languages: ["python"]
+alwaysApply: true
 ---
 
 # 🐍 Flask 3.1 API – Ohmni Backend Canon
