@@ -1,0 +1,115 @@
+# ABCO AI Frontend - Cursor Rules
+
+You are an expert in Azure Functions development, OpenAI integration, cloud-based AI applications, and Document Intelligence, with a focus on Python, Azure services, vector databases, MongoDB API operations, and document processing.
+
+## 🎯 Project Overview
+
+**Mission**: Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI chat, uploads, notes).
+
+**Architecture**:
+1. **frontend/** → Next.js 15.3.3 (App Router, RSC)  
+2. **backend/** → Flask 3.1 (PostgreSQL, Redis, AI clients)  
+3. **Azure** → AI Search, Cosmos DB (Mongo API), Blob Storage
+
+**Core Endpoints**: `/api/auth/*`, `/api/chat/*`, `/api/nfpa70/*`, `/api/upload/*`, `/api/notes/*`
+
+## 🔧 Technical Stack
+
+### Frontend
+- Next.js 15.3.3 (App Router) + React 19.1 + TypeScript 5.x (strict)
+- TanStack Query 5.80.7 + Zustand 4.5.2
+- Tailwind CSS 3.4.1 + shadcn/ui + Lucide-React  
+- NextAuth.js 5.0.0-beta.28
+
+### Backend (External API)
+- **URL**: `https://ohmni-backend.onrender.com` (NEVER hardcode)
+- Flask 3.1 + PostgreSQL + Redis + AI clients
+- Use `process.env.NEXT_PUBLIC_BACKEND_URL`
+
+## 🎨 UI/UX Standards
+
+### Design System
+- **Primary Color**: Electric Blue (#149DEA)
+- **Success**: Green (#10B981)  
+- **Warning**: Amber (#F59E0B)
+- **Error**: Red (#EF4444)
+- **Typography**: Montserrat (headers), Poppins (body), JetBrains Mono (code)
+
+### Mobile-First Requirements
+- Touch targets minimum 44x44px (workers wear gloves)
+- High contrast for outdoor visibility
+- Offline-first with background sync
+- Progressive Web App capabilities
+
+### Accessibility
+- ARIA labels on all interactive elements
+- Keyboard navigation support
+- Color contrast ratio ≥ 4.5:1
+- Focus indicators visible
+- Screen reader support
+
+## 🔌 API Integration
+
+### Standard Pattern
+```typescript
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
+export function useData() {
+  return useQuery({
+    queryKey: ['data'],
+    queryFn: () => api.get('/api/endpoint'),
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof APIError && error.status === 401) return false;
+      return failureCount < 3;
+    },
+    networkMode: 'offlineFirst',
+  });
+}
+```
+
+### Critical Rules
+1. **Database**: NEVER connect directly - always use Flask API
+2. **Auth**: All API calls need JWT token from NextAuth session  
+3. **Offline**: Always handle offline states with queue
+4. **Images**: Always use Next.js `<Image />` component with width/height
+5. **Components**: PascalCase.tsx, hooks: useX.ts, utils: camelCase.ts
+
+## 🚀 Development Standards
+
+### Code Quality
+- TypeScript strict mode, no `any` types
+- ESLint + Prettier formatting
+- Conventional commits (feat:, fix:, etc.)
+- Comprehensive error handling
+
+### Performance
+- Server-side rendering with App Router
+- Image optimization with Next.js Image
+- Code splitting with dynamic imports
+- Caching strategies with React Query
+
+### Testing
+- Unit tests with Jest
+- Integration tests for API calls
+- E2E tests for critical user flows
+
+## 🏗️ File Structure
+
+```
+app/
+├── api/                 # API routes
+├── components/         # Reusable UI components
+├── hooks/             # Custom React hooks
+├── lib/               # Utility functions
+├── types/             # TypeScript definitions
+└── (routes)/          # App Router pages
+
+components/
+├── chat/              # Chat-related components
+├── home/              # Home page components
+└── ui/                # shadcn/ui components
+```
+
+Always prioritize user experience for field electricians - they need fast, reliable, offline-capable tools that work with gloves in various lighting conditions. 
