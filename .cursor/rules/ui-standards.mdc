@@ -1,0 +1,34 @@
+---
+description: UI/UX design standards and accessibility guidelines for field electricians
+globs: ["**/*.tsx", "**/*.css", "app/**", "components/**"]
+alwaysApply: true
+---
+
+# 🎨 UI/UX Standards for Field Electricians
+
+## Design System
+- **Primary Color**: Electric Blue (#149DEA)
+- **Success**: Green (#10B981)  
+- **Warning**: Amber (#F59E0B)
+- **Error**: Red (#EF4444)
+- **Typography**: Montserrat (headers), Poppins (body), JetBrains Mono (code)
+
+## Mobile-First Requirements
+- Touch targets minimum 44x44px (workers wear gloves)
+- High contrast for outdoor visibility
+- Offline-first with background sync
+- Progressive Web App capabilities
+
+## Accessibility Requirements
+- ARIA labels on all interactive elements
+- Keyboard navigation support
+- Color contrast ratio ≥ 4.5:1
+- Focus indicators visible
+- Screen reader support
+- Respect `prefers-reduced-motion`
+
+## Images
+- Always use Next.js `<Image />` component
+- Never use raw `<img>` tags
+- Always set width and height properties
+- Store static images in `/public/images/`
