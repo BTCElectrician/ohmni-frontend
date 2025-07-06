@@ -1,9 +1,7 @@
 ---
 description: UI/UX design standards and accessibility guidelines for field electricians
-globs: ["**/*.tsx", "**/*.css", "app/**", "components/**"]
-alwaysApply: true
+alwaysApply: false
 ---
-
 # 🎨 UI/UX Standards for Field Electricians
 
 ## Design System

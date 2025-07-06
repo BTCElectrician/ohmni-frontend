@@ -1,0 +1,42 @@
+---
+description: Coding conventions and style standards for TypeScript and Python
+globs: ["**/*.ts", "**/*.tsx", "**/*.py", "**/*.json", "**/*.md"]
+alwaysApply: false
+---
+
+# ✨ Coding Conventions
+
+## TypeScript Standards
+- `strict: true`, no `any` types, explicit generics
+- ESLint + Prettier formatting
+- Prefer `const` over `let`, avoid `var`
+- Use meaningful variable names, avoid abbreviations
+
+## Python Standards (Backend)
+- Python 3.11 with type annotations
+- Black + isort for formatting
+- Annotate all public functions
+- Use docstrings for complex functions
+
+## Commit Messages
+- **Conventional Commits**: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`
+- Keep summary under 50 characters
+- Use imperative mood: "Add feature" not "Added feature"
+- Reference issue numbers when applicable
+
+## Documentation
+- **React**: JSDoc comments for complex components
+- **Python**: Google-style docstrings
+- **README**: Keep up-to-date with setup instructions
+- **API**: Document all endpoints with examples
+
+## Formatting Commands
+```bash
+# Frontend
+pnpm lint && pnpm format
+pnpm type-check
+
+# Backend (if applicable)
+poetry run black . && poetry run isort .
+poetry run ruff check .
+```

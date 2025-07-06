@@ -1,0 +1,44 @@
+---
+description: CI/CD deployment checklist and build requirements
+globs: ["**/*.yml", "**/*.yaml", "**/*.json", "package.json", "next.config.js"]
+alwaysApply: false
+---
+
+# 🚦 CI/CD & Deployment Checklist
+
+## Pre-Deployment Tests
+```bash
+# Frontend Tests
+pnpm build && pnpm start
+pnpm lint && pnpm type-check
+pnpm test
+
+# Static Analysis
+pnpm type-check
+eslint . --ext .ts,.tsx
+```
+
+## Build Requirements
+- **Environment**: `NEXT_PUBLIC_BACKEND_URL` must be set for Vercel
+- **Bundle Size**: Frontend < 250 kB gzipped
+- **Performance**: Use `dynamic()` imports for non-critical code
+- **Images**: All images optimized and using Next.js `<Image />`
+
+## Deployment Rules
+1. **All tests must pass** before merge to `main`
+2. **Frontend**: Auto-deployed to Vercel from `main` branch
+3. **Backend**: Manual deployment trigger on Render.com
+4. **Database**: Migrations run automatically on deploy
+5. **Environment**: All required env vars set in production
+
+## Performance Budgets
+- **First Contentful Paint**: < 2.5s
+- **Largest Contentful Paint**: < 2.5s
+- **Cumulative Layout Shift**: < 0.1
+- **Total Blocking Time**: < 300ms
+
+## Monitoring
+- Check deployment logs for errors
+- Verify API endpoints are responding
+- Test critical user flows after deployment
+- Monitor performance metrics in production

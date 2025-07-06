@@ -1,9 +1,7 @@
 ---
 description: Frontend development standards for Next.js React TypeScript stack
-globs: ["app/**", "components/**", "hooks/**", "lib/**", "*.tsx", "*.ts"]
-alwaysApply: true
+alwaysApply: false
 ---
-
 # 📱 Frontend Stack Standards
 
 ## Framework & Libraries
