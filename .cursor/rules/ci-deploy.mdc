@@ -1,0 +1,16 @@
+---
+alwaysApply: false
+---
+# 🚦 CI / Deployment Checklist
+
+1. **Tests**
+   ```bash
+   pnpm --filter frontend test
+   pytest -q
+Static analysis pnpm type-check · ruff check backend/
+
+Build NEXT_PUBLIC_BACKEND_URL set for Vercel preview.
+
+Bundle budget front-end < 250 kB gzipped; prefer dynamic imports.
+
+Rule snapshot CI fails if .cursor/rules/** changed & snapshot missing.

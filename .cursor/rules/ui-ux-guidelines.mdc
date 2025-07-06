@@ -1,0 +1,10 @@
+---
+alwaysApply: false
+---
+# 🎨 UI / A11y Guardrails
+
+* **Palette**  Primary `#149DEA` · Success `#10B981` · Warning `#F59E0B` · Error `#EF4444`
+* **Fonts**  Montserrat (headers) · Poppins (body) · JetBrains Mono (code)
+* **Images**  Use Next.js `<Image />`; no raw `<img>`; set width/height.
+* **Accessibility**  ARIA labels, keyboard nav, visible focus, contrast ≥ 4.5 : 1, respect `prefers-reduced-motion`.
+* **Web-vitals**  LCP < 2.5 s · CLS < 0.1; load non-critical code with `dynamic()`.

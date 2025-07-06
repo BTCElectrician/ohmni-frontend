@@ -1,0 +1,22 @@
+---
+id: "frontend-stack"
+priority: 900
+scope: ["agent"]
+when:
+  paths: ["frontend/**", "app/**", "components/**", "hooks/**"]
+  languages: ["typescript", "tsx", "css", "js"]
+---
+
+# 📱 Front-End Canon
+
+* **Framework / libs**  
+  * Next.js 15.3.3 · React 19.1 · TypeScript 5.x (`strict`)  
+  * Tailwind 3.4.1 + shadcn/ui · Lucide-React  
+  * TanStack Query 5.80.7 · Zustand 4.5.2  
+  * NextAuth.js 5.0.0-beta.28 · next-pwa
+* **Golden Rules**  
+  1. **Never** hard-code backend URL—use `process.env.NEXT_PUBLIC_BACKEND_URL`.  
+  2. Use helper in `frontend/lib/api.ts`; SSE via browser streams.  
+  3. Components `PascalCase.tsx`; hooks `useX.ts`; utils `camelCase.ts`.  
+  4. Tailwind classes **literal**; dynamic strings safelisted in `tailwind.config.mjs`.  
+  5. Provide skeleton loaders, high-contrast palette, ≥ 44 px touch targets, optimistic UI with rollback.
