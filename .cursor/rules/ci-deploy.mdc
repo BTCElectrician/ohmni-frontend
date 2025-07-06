@@ -1,9 +1,7 @@
 ---
 description: CI/CD deployment checklist and build requirements
-globs: ["**/*.yml", "**/*.yaml", "**/*.json", "package.json", "next.config.js"]
 alwaysApply: false
 ---
-
 # 🚦 CI/CD & Deployment Checklist
 
 ## Pre-Deployment Tests

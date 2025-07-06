@@ -1,9 +1,7 @@
 ---
 description: Coding conventions and style standards for TypeScript and Python
-globs: ["**/*.ts", "**/*.tsx", "**/*.py", "**/*.json", "**/*.md"]
 alwaysApply: false
 ---
-
 # ✨ Coding Conventions
 
 ## TypeScript Standards
