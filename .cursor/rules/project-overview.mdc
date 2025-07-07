@@ -1,6 +1,4 @@
 ---
-description: ABCO AI project overview and architecture guidelines
-globs: ["**"]
 alwaysApply: true
 ---
 
@@ -10,19 +8,49 @@ alwaysApply: true
 Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI chat, uploads, notes).
 
 ## Architecture
-1. **frontend/** → Next.js 15.3.3 (App Router, RSC)  
-2. **backend/** → Flask 3.1 (PostgreSQL, Redis, AI clients)  
-3. **Azure** → AI Search, Cosmos DB (Mongo API), Blob Storage
+1. **Next.js 15.3.3 + React 19.1** (App Router, RSC) at repo root
+2. **External backend** → Flask 3.x (PostgreSQL, Redis, AI clients)
+3. **Azure Services** → AI Search, Cosmos DB, Blob Storage
 
 ## Core Endpoints
 - `/api/auth/*` - Authentication (login, register, refresh, profile)
-- `/api/chat/*` - Chat sessions with SSE at /chat/{id}/stream
-- `/api/nfpa70/*` - Electrical code lookups
+- `/api/chat/sessions/*` - Chat session CRUD
+- `/api/chat/sessions/{id}/stream` - SSE stream
+- `/api/nfpa70/*` - **planned** NEC look-ups
 - `/api/upload/*` - File upload and AI analysis
-- `/api/notes/*` - Note management
+- `/api/notes/*` - **planned** field notes
 
 ## Hard Rules
 1. Frontend never talks directly to DB—API only
 2. Preserve offline workflow (React Query hydration + Zustand queue)
+3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
+4. All API calls need JWT token from NextAuth.js session
+5. All secrets and URLs live in `.env*` files—never commit
+3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
+4. All API calls need JWT token from NextAuth session
+# ABCO AI - Ohmni Assistant
+
+## Mission
+Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI chat, uploads, notes).
+
+## Architecture
+1. **Next.js 15.3.3 + React 19.1** (App Router, RSC) at repo root
+2. **External backend** → Flask 3.x (PostgreSQL, Redis, AI clients)
+3. **Azure Services** → AI Search, Cosmos DB, Blob Storage
+
+## Core Endpoints
+- `/api/auth/*` - Authentication (login, register, refresh, profile)
+- `/api/chat/sessions/*` - Chat session CRUD
+- `/api/chat/sessions/{id}/stream` - SSE stream
+- `/api/nfpa70/*` - **planned** NEC look-ups
+- `/api/upload/*` - File upload and AI analysis
+- `/api/notes/*` - **planned** field notes
+
+## Hard Rules
+1. Frontend never talks directly to DB—API only
+2. Preserve offline workflow (React Query hydration + Zustand queue)
+3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
+4. All API calls need JWT token from NextAuth.js session
+5. All secrets and URLs live in `.env*` files—never commit
 3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
 4. All API calls need JWT token from NextAuth session
