@@ -10,15 +10,19 @@ Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI
 ## Architecture
 1. **Next.js 15.3.3 + React 19.1** (App Router, RSC) at repo root
 2. **External backend** → Flask 3.x (PostgreSQL, Redis, AI clients)
-3. **Azure Services** → AI Search, Cosmos DB, Blob Storage
+3. **Azure Services** → AI Search, Azure Cognitive Services (Vision, Speech), Blob Storage
 
 ## Core Endpoints
-- `/api/auth/*` - Authentication (login, register, refresh, profile)
+- `/api/auth/*` - Authentication (login, register, refresh, profile, verify, logout)
 - `/api/chat/sessions/*` - Chat session CRUD
-- `/api/chat/sessions/{id}/stream` - SSE stream
-- `/api/nfpa70/*` - **planned** NEC look-ups
-- `/api/upload/*` - File upload and AI analysis
-- `/api/notes/*` - **planned** field notes
+- `/api/chat/sessions/{id}/stream` - SSE stream (GET or POST)
+- `/api/upload/*` - File upload + AI analysis
+- `/api/nfpa70/*` - NEC look-ups
+- `/api/notes/*` - Field notes
+- `/api/quota/*` - Daily "Brain/Nuclear" quota status & reset
+- `/api/logs/*` - System log tail (admin)
+- `/api/health/*` - Service & DB health checks
+- `/api/search/*` - Azure Search bulk upload & testing (admin)
 
 ## Hard Rules
 1. Frontend never talks directly to DB—API only
@@ -26,8 +30,6 @@ Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI
 3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
 4. All API calls need JWT token from NextAuth.js session
 5. All secrets and URLs live in `.env*` files—never commit
-3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
-4. All API calls need JWT token from NextAuth session
 # ABCO AI - Ohmni Assistant
 
 ## Mission
@@ -36,15 +38,19 @@ Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI
 ## Architecture
 1. **Next.js 15.3.3 + React 19.1** (App Router, RSC) at repo root
 2. **External backend** → Flask 3.x (PostgreSQL, Redis, AI clients)
-3. **Azure Services** → AI Search, Cosmos DB, Blob Storage
+3. **Azure Services** → AI Search, Azure Cognitive Services (Vision, Speech), Blob Storage
 
 ## Core Endpoints
-- `/api/auth/*` - Authentication (login, register, refresh, profile)
+- `/api/auth/*` - Authentication (login, register, refresh, profile, verify, logout)
 - `/api/chat/sessions/*` - Chat session CRUD
-- `/api/chat/sessions/{id}/stream` - SSE stream
-- `/api/nfpa70/*` - **planned** NEC look-ups
-- `/api/upload/*` - File upload and AI analysis
-- `/api/notes/*` - **planned** field notes
+- `/api/chat/sessions/{id}/stream` - SSE stream (GET or POST)
+- `/api/upload/*` - File upload + AI analysis
+- `/api/nfpa70/*` - NEC look-ups
+- `/api/notes/*` - Field notes
+- `/api/quota/*` - Daily "Brain/Nuclear" quota status & reset
+- `/api/logs/*` - System log tail (admin)
+- `/api/health/*` - Service & DB health checks
+- `/api/search/*` - Azure Search bulk upload & testing (admin)
 
 ## Hard Rules
 1. Frontend never talks directly to DB—API only
@@ -52,5 +58,3 @@ Offline-capable, mobile-first assistant for field electricians (NEC look-ups, AI
 3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
 4. All API calls need JWT token from NextAuth.js session
 5. All secrets and URLs live in `.env*` files—never commit
-3. Always use `process.env.NEXT_PUBLIC_BACKEND_URL`
-4. All API calls need JWT token from NextAuth session

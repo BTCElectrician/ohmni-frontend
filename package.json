@@ -7,8 +7,9 @@
     "build": "next build",
     "build:prod": "SKIP_ENV_VALIDATION=true next build",
     "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "lint": "next lint --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.16",

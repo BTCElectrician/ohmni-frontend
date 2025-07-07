@@ -7,13 +7,12 @@ alwaysApply: false
 ## Pre-Deployment Tests
 ```bash
 # Frontend Tests
-pnpm build && pnpm start
-pnpm lint && pnpm type-check
-pnpm test
+npm run build && npm run start
+npm run lint && npm run type-check
+npm run test
 
-# Static Analysis
-pnpm type-check
-eslint . --ext .ts,.tsx
+# Note: No duplicate static analysis calls needed
+# npm run lint already includes ESLint with Next.js config
 ```
 
 ## Build Requirements

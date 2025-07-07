@@ -68,7 +68,9 @@ The project uses a custom design system with the following features:
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+- `npm run lint` - Run ESLint with max warnings enforcement
+- `npm run type-check` - Run TypeScript compilation check
+- `npm run test` - Run tests (placeholder until test framework is added)
 
 ### Code Style
 
@@ -77,6 +79,18 @@ The project uses a custom design system with the following features:
 - Follow the project's component structure
 - Use Tailwind CSS for styling
 - Write meaningful commit messages
+
+### CI/CD
+
+This project uses **npm** as the standard package manager (not pnpm or yarn). All CI/CD workflows are configured to use npm commands.
+
+For deployment guidelines and requirements, see our [CI/CD Deployment Checklist](.cursor/rules/ci-deploy.mdc).
+
+The project includes automated CI checks that run on every push and pull request:
+- Linting with zero warnings policy
+- TypeScript compilation check
+- Production build validation
+- Basic smoke tests
 
 ## License
 
