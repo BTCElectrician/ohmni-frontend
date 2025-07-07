@@ -1,5 +1,5 @@
 ---
-description: Frontend development standards for Next.js React TypeScript stack
+description: Frontend development standards for Next.js / React / TS stack
 alwaysApply: false
 ---
 # 📱 Frontend Stack Standards
@@ -7,31 +7,39 @@ alwaysApply: false
 ## Framework & Libraries
 - Next.js 15.3.3 (App Router) + React 19.1 + TypeScript 5.x (strict)
 - TanStack Query 5.80.7 + Zustand 4.5.2
-- Tailwind CSS 3.4.1 + shadcn/ui + Lucide-React  
+- Tailwind CSS 3.4.1 + Lucide-React
 - NextAuth.js 5.0.0-beta.28
+- **Utilities**: highlight.js, react-markdown, remark-gfm, rehype-highlight
+- **UI**: React-Hot-Toast
+- **(Planned)**: shadcn/ui
 
 ## Critical Rules
-1. **Never** hard-code backend URL—use `process.env.NEXT_PUBLIC_BACKEND_URL`
-2. Use helper in `lib/api.ts`; SSE via browser streams
-3. Components: `PascalCase.tsx`; hooks: `useX.ts`; utils: `camelCase.ts`
-4. Always use Next.js `<Image />` component with width/height
-5. Touch targets minimum 44x44px (workers wear gloves)
+1.  **Never** hard-code the backend URL—always use `process.env.NEXT_PUBLIC_BACKEND_URL`.
+2.  Use the `api` and `streamRequest` helpers in `lib/api.ts` for all REST and SSE calls.
+3.  **File Naming**: Components `PascalCase.tsx`; hooks `useX.ts`; utils `camelCase.ts`.
+4.  **Images**: Prefer Next.js `<Image />` with width & height.
+    * **Exception**: Use the native `<img>` tag where dimensions are unknown at build time, such as in the `MarkdownRenderer` or `ChatMessage` attachment previews.
+5.  **Accessibility**: Interactive controls must be at least **44x44px** to ensure usability for all users, including those wearing gloves.
+6.  **Error Handling**: Use the `toastFromApiError` helper in `lib/toast-helpers.ts` within `catch` blocks for user-facing API errors.
+7.  **Data Fetching**: Keep React Query patterns consistent with the global defaults set in `app/components/providers/QueryProvider.tsx`.
 
 ## API Integration Pattern
 ```typescript
-import { api } from '@/lib/api';
+import { api, APIError } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 
 export function useData() {
   return useQuery({
     queryKey: ['data'],
     queryFn: () => api.get('/api/endpoint'),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
-      if (error instanceof APIError && error.status === 401) return false;
+      // Do not retry on authentication errors
+      if (error instanceof APIError && error.status === 401) {
+        return false;
+      }
       return failureCount < 3;
     },
     networkMode: 'offlineFirst',
   });
 }
-```
