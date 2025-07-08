@@ -7,10 +7,11 @@ import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean) => void;
-  onSendMessageWithFile?: (message: string, file: File) => void;
+  onSendMessageWithFile?: (message: string, file: File) => Promise<void>;
   onVoiceRecord?: () => void;
   isStreaming: boolean;
   disabled?: boolean;
+  autoSendOnFileSelect?: boolean;
 }
 
 export function ChatInput({
@@ -19,6 +20,7 @@ export function ChatInput({
   onVoiceRecord,
   isStreaming,
   disabled = false,
+  autoSendOnFileSelect = true,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -87,13 +89,25 @@ export function ChatInput({
       // Show file info
       const sizeMB = (optimizedFile.size / (1024 * 1024)).toFixed(1);
       toastSuccess(`Image ready: ${optimizedFile.name} (${sizeMB}MB)`);
+
+      // 🔗 NEW — trigger vision analysis immediately if auto-send is enabled
+      if (autoSendOnFileSelect && onSendMessageWithFile) {
+        await onSendMessageWithFile(
+          message.trim() || 'Please analyze this image',
+          optimizedFile
+        );
+        clearSelectedFile();     // wipe local state after streaming starts
+        setMessage('');
+        setDeepThinking(false);
+        setNuclearThinking(false);
+      }
     } catch (error) {
       console.error('File processing error:', error);
       toastFromApiError(error);
     } finally {
       setIsProcessingFile(false);
     }
-  }, []);
+  }, [autoSendOnFileSelect, message, onSendMessageWithFile]);
 
   const clearSelectedFile = () => {
     if (previewUrl) {
@@ -111,6 +125,7 @@ export function ChatInput({
     }
 
     // If we have a file, use the file upload handler
+    // Note: This is rarely hit when autoSendOnFileSelect=true, but kept as safeguard
     if (selectedFile && onSendMessageWithFile) {
       await onSendMessageWithFile(
         message.trim() || 'Please analyze this image',
@@ -207,12 +222,12 @@ export function ChatInput({
                   accept="image/*"
                   capture="environment" // Opens camera on mobile
                   className="hidden"
-                  disabled={disabled || isStreaming || isProcessingFile || !!selectedFile}
+                  disabled={disabled || isStreaming || isProcessingFile}
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={disabled || isStreaming || isProcessingFile || !!selectedFile}
+                  disabled={disabled || isStreaming || isProcessingFile}
                   className={`p-2.5 rounded-lg transition-all ${
                     selectedFile
                       ? 'bg-green-500/20 text-green-400'
@@ -286,6 +301,13 @@ export function ChatInput({
                 <div className="flex items-center gap-2 text-sm text-yellow-500 animate-fadeInUp">
                   <ImageIcon className="w-4 h-4 animate-pulse" />
                   <span>Processing image...</span>
+                </div>
+              )}
+
+              {autoSendOnFileSelect && isProcessingFile && (
+                <div className="flex items-center gap-2 text-sm text-blue-500 animate-fadeInUp">
+                  <Send className="w-4 h-4 animate-pulse" />
+                  <span>Auto-sending for analysis...</span>
                 </div>
               )}
             </div>

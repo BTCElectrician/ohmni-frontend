@@ -148,7 +148,7 @@ export default function ChatPage() {
     sendMessageWithSession(currentSession.id, content, useDeepReasoning, useNuclear);
   };
 
-  const sendMessageWithFile = async (content: string, file: File) => {
+  const sendMessageWithFile = async (content: string, file: File): Promise<void> => {
     // Hide prompts when sending file (same as regular messages)
     setShowPrompts(false);
     
@@ -483,6 +483,7 @@ export default function ChatPage() {
         <ChatInput
           onSendMessage={sendMessage}
           onSendMessageWithFile={sendMessageWithFile}
+          autoSendOnFileSelect   // boolean shorthand = true
           isStreaming={isStreaming}
           disabled={false}
         />
