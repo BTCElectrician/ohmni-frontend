@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 
@@ -52,6 +53,14 @@ export function ChatInput({
     setNuclearThinking(newState);
     if (newState) setDeepThinking(false);
   };
+
+  const clearSelectedFile = useCallback(() => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  }, [previewUrl]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,15 +116,7 @@ export function ChatInput({
     } finally {
       setIsProcessingFile(false);
     }
-  }, [autoSendOnFileSelect, message, onSendMessageWithFile]);
-
-  const clearSelectedFile = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setSelectedFile(null);
-    setPreviewUrl(null);
-  };
+  }, [autoSendOnFileSelect, message, onSendMessageWithFile, clearSelectedFile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,10 +165,12 @@ export function ChatInput({
           {selectedFile && previewUrl && (
             <div className="mb-3 animate-fadeInUp">
               <div className="relative inline-block">
-                <img
+                <Image
                   src={previewUrl}
                   alt="Preview"
-                  className="max-h-32 max-w-xs rounded-lg border border-border-subtle shadow-lg"
+                  width={200}
+                  height={128}
+                  className="max-h-32 max-w-xs rounded-lg border border-border-subtle shadow-lg object-cover"
                 />
                 <button
                   type="button"
