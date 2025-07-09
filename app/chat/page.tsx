@@ -483,7 +483,7 @@ export default function ChatPage() {
         <ChatInput
           onSendMessage={sendMessage}
           onSendMessageWithFile={sendMessageWithFile}
-          autoSendOnFileSelect   // boolean shorthand = true
+          autoSendOnFileSelect={false}   // Disabled so users can type custom prompts
           isStreaming={isStreaming}
           disabled={false}
         />

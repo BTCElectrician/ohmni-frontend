@@ -159,7 +159,9 @@ export type SSEEventType =
       remaining_deep_reasoning?: number;
       remaining_nuclear?: number;
     }
-  | { type: 'vision_start'; message: string }; // ADD THIS
+  | { type: 'vision_start'; message: string }
+  | { type: 'vision_result'; content: string }
+  | { type: 'complete'; message?: string };
 
 // Add type for offline queue
 export interface QueuedChatAction {

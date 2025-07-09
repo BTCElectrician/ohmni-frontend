@@ -216,6 +216,26 @@ export class ChatService {
                   break;
                 case 'error':
                   throw new Error(data.error);
+                case 'vision_start':
+                  // Show "Analyzing image..." indicator to user
+                  // Maybe update UI state to show loading spinner
+                  console.log('Vision analysis started');
+                  break;
+                case 'vision_result':
+                  // Display the vision analysis result
+                  // This contains the text extracted from the image
+                  console.log('Vision analysis:', data.content);
+                  // Update UI to show the analysis
+                  if (data.content) {
+                    messageBuffer += data.content;
+                    onChunk?.(data.content);
+                  }
+                  break;
+                case 'complete':
+                  // Stream is finished, clean up any loading states
+                  // Maybe close the stream or update UI
+                  console.log('Stream completed');
+                  break;
               }
             } catch (e) {
               if (e instanceof Error && e.message.includes('application context')) {
