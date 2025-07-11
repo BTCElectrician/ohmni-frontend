@@ -124,158 +124,214 @@ export class ChatService {
     useNuclear: boolean = false
   ): Promise<ChatMessage> {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let retryCount = 0;
+    const maxRetries = 2;
+    const retryDelay = 1000; // Start with 1 second
     
-    try {
-      // Enforce mutual exclusivity
-      if (useDeepReasoning && useNuclear) {
-        console.warn('Cannot use Brain and Nuclear together - prioritizing Nuclear');
-        useDeepReasoning = false;
-      }
-      
-      console.log('Sending message - Deep:', useDeepReasoning, 'Nuclear:', useNuclear);
-      
-      // Build request body
-      const body: {
-        content: string;
-        deep_reasoning?: boolean;
-        preferred_model?: string;
-      } = { content };
-      if (useDeepReasoning) body.deep_reasoning = true;
-      if (useNuclear) body.preferred_model = 'o3';
-      
-      const response = await streamRequest(
-        `/api/chat/sessions/${sessionId}/stream`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
+    while (retryCount <= maxRetries) {
+      try {
+        // Enforce mutual exclusivity
+        if (useDeepReasoning && useNuclear) {
+          console.warn('Cannot use Brain and Nuclear together - prioritizing Nuclear');
+          useDeepReasoning = false;
         }
-      );
+        
+        console.log('Sending message - Deep:', useDeepReasoning, 'Nuclear:', useNuclear);
+        if (retryCount > 0) {
+          console.log(`Retry attempt ${retryCount} of ${maxRetries}`);
+        }
+        
+        // Build request body
+        const body: {
+          content: string;
+          deep_reasoning?: boolean;
+          preferred_model?: string;
+        } = { content };
+        if (useDeepReasoning) body.deep_reasoning = true;
+        if (useNuclear) body.preferred_model = 'o3';
+        
+        const response = await streamRequest(
+          `/api/chat/sessions/${sessionId}/stream`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          }
+        );
 
-      if (!response.ok) {
-        // Try to get error message from response body
-        let errorMessage = response.statusText;
-        try {
-          // Clone the response so we can read it as text
-          const clonedResponse = response.clone();
-          const errorText = await clonedResponse.text();
-          
-          // Try to parse as JSON
+        if (!response.ok) {
+          // Try to get error message from response body
+          let errorMessage = response.statusText;
           try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || errorData.message || response.statusText;
-          } catch {
-            // If not JSON, use the text directly if it's not empty
-            if (errorText.trim()) {
-              errorMessage = errorText;
-            }
-          }
-        } catch {
-          // If all parsing fails, use status text
-        }
-        console.error('Stream request failed:', response.status, errorMessage);
-        throw new APIError(response.status, errorMessage);
-      }
-
-      reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
-      }
-
-      const decoder = new TextDecoder();
-      let messageBuffer = '';
-      let lastMessage: ChatMessage | null = null;
-      let configData: Extract<SSEEventType, { type: 'config' }> | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
+            // Clone the response so we can read it as text
+            const clonedResponse = response.clone();
+            const errorText = await clonedResponse.text();
+            
+            // Try to parse as JSON
             try {
-              const data: SSEEventType = JSON.parse(line.slice(6));
-              
-              switch (data.type) {
-                case 'config':
-                  // Store configuration data
-                  configData = data;
-                  console.log('Config received:', configData);
-                  break;
-                case 'content':
-                  messageBuffer += data.content;
-                  onChunk?.(data.content);
-                  break;
-                case 'message':
-                  lastMessage = data.message;
-                  break;
-                case 'error':
-                  throw new Error(data.error);
-                case 'vision_start':
-                  // Show "Analyzing image..." indicator to user
-                  // Maybe update UI state to show loading spinner
-                  console.log('Vision analysis started');
-                  break;
-                case 'vision_result':
-                  // Display the vision analysis result
-                  // This contains the text extracted from the image
-                  console.log('Vision analysis:', data.content);
-                  // Update UI to show the analysis
-                  if (data.content) {
-                    messageBuffer += data.content;
-                    onChunk?.(data.content);
-                  }
-                  break;
-                case 'complete':
-                  // Stream is finished, clean up any loading states
-                  // Maybe close the stream or update UI
-                  console.log('Stream completed');
-                  break;
-              }
-            } catch (e) {
-              if (e instanceof Error && e.message.includes('application context')) {
-                console.warn('Backend context error (auto-naming may be affected):', e.message);
-              } else {
-                console.error('Failed to parse SSE data:', e);
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorData.message || response.statusText;
+            } catch {
+              // If not JSON, use the text directly if it's not empty
+              if (errorText.trim()) {
+                errorMessage = errorText;
               }
             }
+          } catch {
+            // If all parsing fails, use status text
           }
+          console.error('Stream request failed:', response.status, errorMessage);
+          throw new APIError(response.status, errorMessage);
         }
-      }
 
-      // Return the complete message with metadata
-      return lastMessage || {
-        id: 'temp-' + Date.now(),
-        sessionId: sessionId,
-        role: 'assistant',
-        content: messageBuffer,
-        timestamp: new Date(),
-        metadata: configData ? {
-          deep_reasoning: configData.deep_reasoning || false,
-          nuclear_mode: configData.model === 'o3',  // Renamed from nuclear_reasoning
-          model_used: configData.model,
-          reasoning_remaining: configData.remaining_deep_reasoning,
-          nuclear_remaining: configData.remaining_nuclear
-        } : undefined
-      };
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
-    } finally {
-      // Always release the reader lock
-      if (reader) {
-        try {
-          reader.releaseLock();
-        } catch (e) {
-          console.warn('Failed to release reader lock:', e);
+        reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let messageBuffer = '';
+        let lastMessage: ChatMessage | null = null;
+        let configData: Extract<SSEEventType, { type: 'config' }> | null = null;
+
+        while (true) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data: SSEEventType = JSON.parse(line.slice(6));
+                  
+                  switch (data.type) {
+                    case 'config':
+                      // Store configuration data
+                      configData = data;
+                      console.log('Config received:', configData);
+                      break;
+                    case 'content':
+                      messageBuffer += data.content;
+                      onChunk?.(data.content);
+                      break;
+                    case 'message':
+                      lastMessage = data.message;
+                      break;
+                    case 'error':
+                      throw new Error(data.error);
+                    case 'vision_start':
+                      // Show "Analyzing image..." indicator to user
+                      // Maybe update UI state to show loading spinner
+                      console.log('Vision analysis started');
+                      break;
+                    case 'vision_result':
+                      // Display the vision analysis result
+                      // This contains the text extracted from the image
+                      console.log('Vision analysis:', data.content);
+                      // Update UI to show the analysis
+                      if (data.content) {
+                        messageBuffer += data.content;
+                        onChunk?.(data.content);
+                      }
+                      break;
+                    case 'complete':
+                      // Stream is finished, clean up any loading states
+                      // Maybe close the stream or update UI
+                      console.log('Stream completed');
+                      break;
+                  }
+                } catch (e) {
+                  if (e instanceof Error && e.message.includes('application context')) {
+                    console.warn('Backend context error (auto-naming may be affected):', e.message);
+                  } else {
+                    console.error('Failed to parse SSE data:', e);
+                  }
+                }
+              }
+            }
+                      } catch (readError) {
+              // Handle read errors (connection issues)
+              console.error('Stream read error:', readError);
+              throw readError;
+            }
+        }
+
+        // If we got here, the stream completed successfully
+        // Return the complete message with metadata
+        return lastMessage || {
+          id: 'temp-' + Date.now(),
+          sessionId: sessionId,
+          role: 'assistant',
+          content: messageBuffer,
+          timestamp: new Date(),
+          metadata: configData ? {
+            deep_reasoning: configData.deep_reasoning || false,
+            nuclear_mode: configData.model === 'o3',  // Renamed from nuclear_reasoning
+            model_used: configData.model,
+            reasoning_remaining: configData.remaining_deep_reasoning,
+            nuclear_remaining: configData.remaining_nuclear
+          } : undefined
+        };
+      } catch (error) {
+        console.error('Streaming error:', error);
+        
+        // Always release the reader lock on error
+        if (reader) {
+          try {
+            reader.releaseLock();
+          } catch (e) {
+            console.warn('Failed to release reader lock:', e);
+          }
+          reader = undefined;
+        }
+        
+        // Check if we should retry
+        const isConnectionError = error instanceof Error && (
+          error.message.includes('peer closed connection') ||
+          error.message.includes('RemoteProtocolError') ||
+          error.message.includes('incomplete chunked read') ||
+          error.message.includes('network')
+        );
+        
+        if (isConnectionError && retryCount < maxRetries) {
+          retryCount++;
+          const delay = retryDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+          console.log(`Connection error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue; // Retry the request
+        }
+        
+        // If not retryable or max retries reached, throw a user-friendly error
+        if (isConnectionError) {
+          throw new Error(
+            useDeepReasoning 
+              ? 'Connection lost while using Deep Reasoning model. This can happen with complex queries. Please try again.'
+              : useNuclear
+              ? 'Connection lost while using Nuclear model. Please try again.'
+              : 'Connection lost during AI response. Please try again.'
+          );
+        }
+        
+        throw error;
+      } finally {
+        // Always release the reader lock
+        if (reader) {
+          try {
+            reader.releaseLock();
+          } catch (e) {
+            console.warn('Failed to release reader lock:', e);
+          }
         }
       }
     }
+    
+    // This should never be reached, but TypeScript needs a return
+    throw new Error('Maximum retry attempts exceeded');
   }
 
   async sendMessage(

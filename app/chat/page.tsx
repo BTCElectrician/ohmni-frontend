@@ -420,7 +420,18 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      updateMessage(tempAiMessageId, 'Sorry, I encountered an error processing your request.');
+      
+      // Simple user-friendly error messages
+      let errorMessage = 'Connection lost while generating the answer. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('quota') || error.message.includes('limit')) {
+          errorMessage = 'You\'ve reached your daily limit for this model. Please try again tomorrow.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'The request took too long. Please try again.';
+        }
+      }
+      
+      updateMessage(tempAiMessageId, errorMessage);
       toastFromApiError(error);
       setIsStreaming(false);
       setStreamingMessageId(null);
@@ -531,7 +542,14 @@ export default function ChatPage() {
               {/* Streaming Indicator */}
               {isStreaming && streamingMessageId && (
                 <div className="text-center text-text-secondary text-sm animate-pulse">
-                  Ohmni Oracle is thinking...
+                  <div>Ohmni Oracle is thinking...</div>
+                  {/* Show extended time warning for slower models */}
+                  {(messages.some(m => m.metadata?.nuclear_mode) || 
+                    messages.some(m => m.metadata?.deep_reasoning)) && (
+                    <div className="text-xs mt-1 opacity-70">
+                      Advanced models may take longer to respond
+                    </div>
+                  )}
                 </div>
               )}
             </div>
