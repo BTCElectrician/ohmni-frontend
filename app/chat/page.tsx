@@ -8,12 +8,19 @@ import { chatService } from '@/services/chatService';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { ChatMessage as ChatMessageType } from '@/types/api';
+import { ChatMessage as ChatMessageType, ChatSession } from '@/types/api';
 // import ApiDebug from '@/components/debug/ApiDebug';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import { SESSION_UPDATED_EVENT } from '@/lib/events';
+
+// Title refresh delays - conservative timing that works for all current and future models
+const TITLE_REFRESH_DELAY = {
+  INITIAL: 5000,  // 5 seconds - works for all models (regular, reasoning, nuclear, future models)
+  RETRY: 8000     // 8 seconds - backup check for any slow models
+};
 
 const PROMPT_SUGGESTIONS = [
   { 
@@ -55,8 +62,20 @@ export default function ChatPage() {
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
-  const [showPrompts, setShowPrompts] = useState(true);
+  // FIX: Default prompts to OFF, load from localStorage if available
+  const [showPrompts, setShowPrompts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showChatPrompts');
+      return saved === 'true'; // Only true if explicitly set
+    }
+    return false; // Default to OFF
+  });
   const [hasFirstMessage, setHasFirstMessage] = useState(false);
+  
+  // Persist preference when it changes
+  useEffect(() => {
+    localStorage.setItem('showChatPrompts', showPrompts.toString());
+  }, [showPrompts]);
   
   // Track quota changes to reduce toast noise
   const lastQuotaRef = useRef<{ deep?: number; nuclear?: number }>({});
@@ -91,12 +110,34 @@ export default function ChatPage() {
     }
   }, [currentSession, setMessages, loadMessages, isCreatingNewSession]);
 
-  // Reset prompts when switching to an empty chat
   useEffect(() => {
-    if (messages.length === 0) {
+    const handleNewChatCreated = () => {
+      console.log('New chat created via sidebar - resetting hasFirstMessage');
+      setMessages([]);
       setShowPrompts(true);
+      // FIX: Reset hasFirstMessage when new chat is created via sidebar
+      setHasFirstMessage(false);
+    };
+    window.addEventListener('new-chat-created', handleNewChatCreated);
+    return () => {
+      window.removeEventListener('new-chat-created', handleNewChatCreated);
+    };
+  }, [setMessages]);
+
+  // Show prompts only for new chats, hide for existing chats
+  useEffect(() => {
+    if (messages.length === 0 && !currentSession) {
+      setShowPrompts(true);
+    } else if (messages.length > 0) {
+      setShowPrompts(false);
     }
-  }, [messages.length]);
+  }, [messages.length, currentSession]);
+
+  const selectSession = useCallback((session: ChatSession) => {
+    setCurrentSession(session);
+    // FIX: Ensure prompts are hidden when selecting existing session
+    setShowPrompts(false);
+  }, [setCurrentSession]);
 
   const sendMessage = async (
     content: string, 
@@ -118,6 +159,10 @@ export default function ChatPage() {
         if (!session || !session.id) {
           throw new Error('Failed to create session - invalid response');
         }
+        
+        // FIX: Reset hasFirstMessage for new session
+        console.log('Creating new session - resetting hasFirstMessage to false');
+        setHasFirstMessage(false);
         
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
@@ -157,9 +202,16 @@ export default function ChatPage() {
       try {
         setIsCreatingNewSession(true);
         const session = await chatService.createSession('New Chat');
+        
+        // FIX: Reset hasFirstMessage for new session
+        console.log('Creating new session (file upload) - resetting hasFirstMessage to false');
+        setHasFirstMessage(false);
+        
         setCurrentSession(session);
         await sendMessageWithFileToSession(session.id, content, file);
         setIsCreatingNewSession(false);
+        // FIX: Invalidate sessions to refresh sidebar
+        queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
       } catch (error) {
         setIsCreatingNewSession(false);
         toastFromApiError(error);
@@ -175,6 +227,10 @@ export default function ChatPage() {
     content: string,
     file: File
   ) => {
+    // Track first message properly - check if this is the first message for this session
+    const isFirstMessage = !hasFirstMessage;
+    console.log('sendMessageWithFileToSession - isFirstMessage:', isFirstMessage, 'hasFirstMessage:', hasFirstMessage, 'messages.length:', messages.length);
+    
     try {
       // 1. Upload file and add user message
       const userMessage = await chatService.sendMessageWithFile(
@@ -218,6 +274,26 @@ export default function ChatPage() {
           toastSuccess(`Deep reasoning uses remaining today: ${aiResponse.metadata.reasoning_remaining}`);
         }
         
+        // FIX: Refresh sessions to ensure title appears
+        if (isFirstMessage) {
+          console.log('First message detected (vision upload) - setting up title refresh timers');
+          setHasFirstMessage(true);
+          
+          setTimeout(() => {
+            console.log('Refreshing sessions to pick up auto-generated title...');
+            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+            
+            // Dispatch custom event for sidebar
+            window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
+          }, TITLE_REFRESH_DELAY.INITIAL);
+          
+          // Add a second check for any slow models
+          setTimeout(() => {
+            console.log('Second refresh for vision upload title...');
+            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+          }, TITLE_REFRESH_DELAY.RETRY);
+        }
+        
       } catch (error) {
         console.error('Vision analysis failed:', error);
         updateMessage(tempAiMessageId, 'Sorry, I couldn\'t analyze the image. Please try again.');
@@ -239,11 +315,9 @@ export default function ChatPage() {
     useDeepReasoning: boolean = false,
     useNuclear: boolean = false
   ) => {
-    // Track first message properly
+    // Track first message properly - check if this is the first message for this session
     const isFirstMessage = !hasFirstMessage;
-    if (!hasFirstMessage && messages.length > 0) {
-      setHasFirstMessage(true);
-    }
+    console.log('sendMessageWithSession - isFirstMessage:', isFirstMessage, 'hasFirstMessage:', hasFirstMessage, 'messages.length:', messages.length);
     
     // Add user message immediately for better UX
     const userMessage: ChatMessageType = {
@@ -320,13 +394,29 @@ export default function ChatPage() {
         loadMessages();
       }
       
-      // First message session refresh
+      // First message session refresh - extended timeout for reasoning models
       if (isFirstMessage) {
+        console.log('First message detected - setting up title refresh timers');
         setHasFirstMessage(true);
+        
+        // Use conservative timeout that works for all models
+        const refreshDelay = TITLE_REFRESH_DELAY.INITIAL;
+        
         setTimeout(() => {
           console.log('Refreshing sessions to pick up auto-generated title...');
           queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-        }, 2000);
+          
+          // Dispatch custom event for sidebar
+          window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
+        }, refreshDelay);
+        
+        // Add a second check for reasoning models
+        if (useDeepReasoning || useNuclear) {
+          setTimeout(() => {
+            console.log('Second refresh for reasoning model title...');
+            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+          }, TITLE_REFRESH_DELAY.RETRY);
+        }
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -356,7 +446,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-dark-bg">
       {/* Sidebar */}
-      <ChatSidebar />
+      <ChatSidebar selectSession={selectSession} />
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">

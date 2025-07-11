@@ -8,6 +8,7 @@ import { ChatSession } from '@/types/api';
 import { useChatSessions } from '@/app/hooks/useChatSessions';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
+import { SESSION_UPDATED_EVENT } from '@/lib/events';
 
 // Editable Session Name Component
 function EditableSessionName({ 
@@ -80,7 +81,7 @@ function EditableSessionName({
   );
 }
 
-export function ChatSidebar() {
+export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?: (session: ChatSession) => void }) {
   const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,12 +131,28 @@ export function ChatSidebar() {
     loadSessions();
   }, [loadSessions]);
 
+  // Listen for session updates from other components
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      loadSessions();
+    };
+    
+    // Subscribe to custom event
+    window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
+    
+    return () => {
+      window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
+    };
+  }, [loadSessions]);
+
   const createNewChat = async () => {
     try {
       setError(null);
       const session = await chatService.createSession('New Chat');
       setSessions([session, ...sessions]);
       setCurrentSession(session);
+      // FIX: Clear messages and show prompts in main chat page
+      window.dispatchEvent(new Event('new-chat-created'));
     } catch (error) {
       console.error('Failed to create session:', error);
       setError('Unable to create new chat due to backend issue');
@@ -144,7 +161,11 @@ export function ChatSidebar() {
   };
 
   const selectSession = (session: ChatSession) => {
-    setCurrentSession(session);
+    if (onSelectSession) {
+      onSelectSession(session);
+    } else {
+      setCurrentSession(session);
+    }
   };
 
   const deleteSession = async (id: string, e: React.MouseEvent) => {
