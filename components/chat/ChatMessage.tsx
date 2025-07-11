@@ -65,10 +65,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
                             className="relative overflow-hidden rounded-lg border border-border-subtle cursor-pointer"
                             onClick={() => setShowFullImage(true)}
                           >
-                            <img
+                            <Image
                               src={attachment.url}
                               alt={attachment.filename}
+                              width={800}
+                              height={400}
                               className="max-w-full max-h-[400px] object-contain"
+                              style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '400px' }}
+                              unoptimized
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                               <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -125,10 +129,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setShowFullImage(false)}
         >
-          <img
+          <Image
             src={message.attachments[0].url}
             alt={message.attachments[0].filename}
+            width={1920}
+            height={1080}
             className="max-w-full max-h-full object-contain"
+            style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
+            unoptimized
           />
           <button
             className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
