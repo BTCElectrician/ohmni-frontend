@@ -421,13 +421,17 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to send message:', error);
       
-      // Simple user-friendly error messages
+      // Handle backend's standardized error codes
       let errorMessage = 'Connection lost while generating the answer. Please try again.';
       if (error instanceof Error) {
-        if (error.message.includes('quota') || error.message.includes('limit')) {
+        if (error.message.includes('rate_limit') || error.message.includes('quota') || error.message.includes('limit')) {
           errorMessage = 'You\'ve reached your daily limit for this model. Please try again tomorrow.';
-        } else if (error.message.includes('timeout')) {
+        } else if (error.message.includes('timeout') || error.message.includes('timeout_error')) {
           errorMessage = 'The request took too long. Please try again.';
+        } else if (error.message.includes('network_error')) {
+          errorMessage = 'Network connection was interrupted. Please try again.';
+        } else if (error.message.includes('model_error')) {
+          errorMessage = 'The AI model encountered an error. Please try again.';
         }
       }
       

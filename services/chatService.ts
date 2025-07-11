@@ -290,15 +290,20 @@ export class ChatService {
           reader = undefined;
         }
         
-        // Check if we should retry
+        // Check if we should retry - now using backend's standardized error codes
         const isConnectionError = error instanceof Error && (
+          error.message.includes('network_error') ||
           error.message.includes('peer closed connection') ||
           error.message.includes('RemoteProtocolError') ||
           error.message.includes('incomplete chunked read') ||
           error.message.includes('network')
         );
         
-        if (isConnectionError && retryCount < maxRetries) {
+        // Don't retry rate limit errors - backend handles those
+        const isRateLimitError = error instanceof Error && 
+          error.message.includes('rate_limit');
+        
+        if (isConnectionError && !isRateLimitError && retryCount < maxRetries) {
           retryCount++;
           const delay = retryDelay * Math.pow(2, retryCount - 1); // Exponential backoff
           console.log(`Connection error, retrying in ${delay}ms...`);
