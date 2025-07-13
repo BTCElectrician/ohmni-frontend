@@ -47,7 +47,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <div className="text-sm font-medium opacity-80">
-                  {isUser ? 'You' : 'OHMNI Oracle'}
+                  {isUser ? 'You' : 'Ohmni Oracle'}
                 </div>
                 {!isUser && (
                   <CopyButton text={message.content} />

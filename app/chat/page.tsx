@@ -505,7 +505,7 @@ export default function ChatPage() {
                       Ohmni Oracle
                     </h3>
                     <p className="text-text-secondary">
-                      Your electrical brain boost—get instant answers, powered by AI.
+                      Your electrical backup brain—always knows the answer, always has your back.
                     </p>
                   </div>
 

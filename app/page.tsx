@@ -56,7 +56,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
           <FeatureCard
             icon="/images/perfect-thorr-chatbot.png"
-            title="Chatbot"
+            title="Ohmni Oracle"
             description="Ask NEC questions in seconds."
             href="/chat"
             buttonText="Open Chatbot"
