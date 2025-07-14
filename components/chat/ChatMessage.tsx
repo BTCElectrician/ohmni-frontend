@@ -22,7 +22,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           isUser
             ? 'bg-user-bubble text-white'
             : 'bg-surface-elevated text-text-primary border border-border-subtle'
-        }`}
+        } ${!isUser ? 'relative' : ''}`}
       >
         <div className="flex flex-col">
           <div className="flex items-start gap-3">
@@ -49,9 +49,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 <div className="text-sm font-medium opacity-80">
                   {isUser ? 'You' : 'Ohmni Oracle'}
                 </div>
-                {!isUser && (
-                  <CopyButton text={message.content} />
-                )}
               </div>
 
               {/* Image Attachments */}
@@ -92,7 +89,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 </div>
               )}
 
-              <MarkdownRenderer content={message.content} isUser={isUser} />
+              {/* Markdown Content */}
+              <div className="chat-markdown-content">
+                <MarkdownRenderer content={message.content} isUser={isUser} />
+              </div>
               
               {/* Mode indicators - only show for AI messages */}
               {!isUser && message.metadata?.deep_reasoning && (
@@ -121,6 +121,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
             </div>
           </div>
         </div>
+
+        {/* FLOATING COPY BUTTON - Only for assistant messages */}
+        {!isUser && (
+          <div className="sticky bottom-4 float-right mr-2 mt-4 z-10">
+            <CopyButton 
+              text={message.content} 
+              className="shadow-lg bg-surface-elevated/95 backdrop-blur-sm border-2 border-border-subtle hover:border-electric-blue/50 min-w-[100px]"
+            />
+          </div>
+        )}
       </div>
 
       {/* Full Image Modal */}
