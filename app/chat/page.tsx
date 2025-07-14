@@ -538,7 +538,7 @@ export default function ChatPage() {
           maxSize={isMobile ? 100 : 35} // Full width on mobile, 35% max on desktop
           collapsible={true}
           collapsedSize={0}
-          className={isMobile && !isSidebarOpen ? 'hidden' : ''}
+          className={`h-full ${isMobile && !isSidebarOpen ? 'hidden' : ''}`}
         >
           <ChatSidebar selectSession={selectSession} />
         </ResizablePanel>
@@ -555,7 +555,7 @@ export default function ChatPage() {
         )}
         
         {/* Main Content Panel */}
-        <ResizablePanel defaultSize={isMobile ? 100 : (100 - getDefaultSize())}>
+        <ResizablePanel defaultSize={isMobile ? 100 : (100 - getDefaultSize())} className="h-full">
           <div className="flex-1 flex flex-col overflow-hidden relative min-w-0 h-full">
             {/* Sign Out Button - Adjust position for mobile */}
             <button
