@@ -514,7 +514,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] bg-dark-bg relative">
+    <div className="flex h-screen bg-dark-bg relative">
       {/* Mobile Menu Toggle */}
       {isMobile && (
         <button
@@ -529,7 +529,7 @@ export default function ChatPage() {
       <ResizablePanelGroup 
         direction="horizontal" 
         onLayout={handleResize}
-        className="h-full"
+        className="h-full w-full flex-1"
       >
         {/* Sidebar Panel */}
         <ResizablePanel

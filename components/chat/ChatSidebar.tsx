@@ -209,7 +209,7 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
   };
 
   return (
-    <div className="w-full bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full overflow-hidden">
+    <div className="w-full bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full min-h-0 overflow-hidden">
       {/* Fixed Top Section */}
       <div className="flex-shrink-0">
         {/* New Chat Button */}
@@ -269,7 +269,7 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
               Backend issue preventing<br />chat history from loading
             </div>
           ) : sessions.length > 0 ? (
-            <div className="pb-4">
+            <div className="pb-6">
               {sessions.map((session) => (
                 <div
                   key={session.id}
