@@ -12,9 +12,11 @@ import { ChatMessage as ChatMessageType, ChatSession } from '@/types/api';
 // import ApiDebug from '@/components/debug/ApiDebug';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import { SESSION_UPDATED_EVENT } from '@/lib/events';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/client-resizable';
+import { useMediaQuery } from '@/app/hooks/useMediaQuery';
 
 // Title refresh delays - conservative timing that works for all current and future models
 const TITLE_REFRESH_DELAY = {
@@ -62,6 +64,7 @@ export default function ChatPage() {
 
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
+  
   // FIX: Default prompts to OFF, load from localStorage if available
   const [showPrompts, setShowPrompts] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -71,6 +74,37 @@ export default function ChatPage() {
     return false; // Default to OFF
   });
   const [hasFirstMessage, setHasFirstMessage] = useState(false);
+  
+  // Sidebar size persistence
+  const [sidebarSize, setSidebarSize] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chatSidebarSize');
+      return saved ? parseInt(saved) : 20; // Default 20% for desktop
+    }
+    return 20;
+  });
+
+  // Mobile sidebar toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Media queries
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isTablet = useMediaQuery('(max-width: 1024px)');
+
+  // Calculate responsive defaults
+  const getDefaultSize = () => {
+    if (isMobile) return 0; // Hidden on mobile by default
+    if (isTablet) return 25; // 25% on tablet
+    return sidebarSize; // User preference on desktop
+  };
+
+  // Persist size changes
+  const handleResize = (sizes: number[]) => {
+    if (!isMobile && sizes[0] > 0) {
+      setSidebarSize(sizes[0]);
+      localStorage.setItem('chatSidebarSize', sizes[0].toString());
+    }
+  };
   
   // Persist preference when it changes
   useEffect(() => {
@@ -85,6 +119,27 @@ export default function ChatPage() {
       router.push('/login');
     }
   }, [status, router]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + B to toggle sidebar
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        if (isMobile) {
+          setIsSidebarOpen(!isSidebarOpen);
+        }
+      }
+      
+      // Escape to close sidebar on mobile
+      if (e.key === 'Escape' && isMobile && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isMobile, isSidebarOpen]);
 
   const loadMessages = useCallback(async () => {
     if (!currentSession) return;
@@ -459,19 +514,64 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] bg-dark-bg">
-      {/* Sidebar */}
-      <ChatSidebar selectSession={selectSession} />
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
-        {/* Sign Out Button - Top Right */}
+    <div className="flex h-[calc(100vh-3.5rem)] bg-dark-bg relative">
+      {/* Mobile Menu Toggle */}
+      {isMobile && (
         <button
-          onClick={handleLogout}
-          className="absolute top-4 right-4 z-50 px-4 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 backdrop-blur-sm"
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute top-4 left-4 z-50 p-2 bg-surface-elevated rounded-lg border border-border-subtle hover:bg-electric-blue/20 transition-colors md:hidden"
+          aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
         >
-          Sign Out
+          {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
+      )}
+
+      <ResizablePanelGroup 
+        direction="horizontal" 
+        onLayout={handleResize}
+        className="h-full"
+      >
+        {/* Sidebar Panel */}
+        <ResizablePanel
+          defaultSize={getDefaultSize()}
+          minSize={isMobile ? 0 : 15} // 15% minimum on desktop
+          maxSize={isMobile ? 100 : 35} // Full width on mobile, 35% max on desktop
+          collapsible={true}
+          collapsedSize={0}
+          className={isMobile && !isSidebarOpen ? 'hidden' : ''}
+        >
+          <ChatSidebar selectSession={selectSession} />
+        </ResizablePanel>
+        
+        {/* Resize Handle - Hidden on mobile */}
+        {!isMobile && (
+          <ResizableHandle 
+            className="w-1 bg-border-subtle hover:bg-electric-blue/50 active:bg-electric-blue transition-colors cursor-col-resize focus:outline-none focus:ring-2 focus:ring-electric-blue relative group"
+            aria-label="Resize sidebar"
+          >
+            {/* Visual indicator on hover */}
+            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-electric-blue/20 transition-colors" />
+          </ResizableHandle>
+        )}
+        
+        {/* Main Content Panel */}
+        <ResizablePanel defaultSize={isMobile ? 100 : (100 - getDefaultSize())}>
+          <div className="flex-1 flex flex-col overflow-hidden relative min-w-0 h-full">
+            {/* Sign Out Button - Adjust position for mobile */}
+            <button
+              onClick={handleLogout}
+              className={`absolute top-4 ${isMobile ? 'right-4' : 'right-4'} z-50 px-4 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 backdrop-blur-sm`}
+            >
+              Sign Out
+            </button>
+
+            {/* Mobile Overlay */}
+            {isMobile && isSidebarOpen && (
+              <div 
+                className="absolute inset-0 bg-black/50 z-40 md:hidden"
+                onClick={() => setIsSidebarOpen(false)}
+              />
+            )}
 
         {/* Content Container */}
         <div className="chat-content bg-dark-bg relative overflow-hidden flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
@@ -599,7 +699,9 @@ export default function ChatPage() {
           isStreaming={isStreaming}
           disabled={false}
         />
-      </div>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {/* Debug Section */}
       {/* <ApiDebug /> */}

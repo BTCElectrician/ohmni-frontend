@@ -65,7 +65,8 @@ function EditableSessionName({
         <span 
           className="flex-1 truncate cursor-pointer hover:text-electric-blue text-sm transition-colors"
           onDoubleClick={() => setIsEditing(true)}
-          title={`${session.name} (Double-click to rename)`}
+          title={session.name}
+          aria-label={`Chat session: ${session.name}. Double-click to rename.`}
         >
           {session.name}
         </span>
@@ -208,7 +209,7 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
   };
 
   return (
-    <div className="w-[230px] min-w-[230px] bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full overflow-y-auto custom-scrollbar">
+    <div className="w-full bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full overflow-hidden">
       {/* Fixed Top Section */}
       <div className="flex-shrink-0">
         {/* New Chat Button */}
