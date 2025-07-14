@@ -4,11 +4,92 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import Image from 'next/image';
 import 'highlight.js/styles/github-dark.css';
+import { ReactNode } from 'react';
 
 interface MarkdownRendererProps {
   content: string;
   isUser?: boolean;
 }
+
+// Helper function to detect if a table is a material list or checklist
+const isMaterialListOrChecklist = (tableContent: string): boolean => {
+  const materialListIndicators = [
+    'quantity', 'item', 'size', 'type', 'notes', 'material',
+    'task', 'priority', 'area', 'room', 'needed',
+    'copy-paste material list', 'checklist', 'materials needed',
+    'pvc conduit', 'awg cu', 'concrete', 'ground rod',
+    'switchboard', 'cable', 'conductor', 'electrical',
+    'high', 'medium', 'low', 'final', 'critical'
+  ];
+  
+  const lowercaseContent = tableContent.toLowerCase();
+  
+  // Check for material list patterns
+  const hasMaterialListPattern = materialListIndicators.some(indicator => 
+    lowercaseContent.includes(indicator)
+  );
+  
+  // Check for table structures that look like material lists
+  const hasTableStructure = (
+    lowercaseContent.includes('|') && 
+    (lowercaseContent.includes('ft') || lowercaseContent.includes('in') || lowercaseContent.includes('×'))
+  );
+  
+  // Check for nuclear mode electrical content
+  const hasElectricalContent = [
+    'amp', 'volt', 'wire', 'breaker', 'panel', 'conduit', 'cable',
+    'electrical', 'circuit', 'phase', 'neutral', 'ground'
+  ].some(term => lowercaseContent.includes(term));
+  
+  return hasMaterialListPattern || hasTableStructure || hasElectricalContent;
+};
+
+// Helper function to convert table row data to bullet points
+const formatTableRowAsBulletPoint = (cells: string[]): ReactNode => {
+  // Common patterns for material lists and checklists
+  if (cells.length >= 2) {
+    const [first, second, ...rest] = cells;
+    
+    // Material list format: Quantity | Item | Size/Type | Notes
+    if (cells.length >= 3) {
+      const quantity = first?.trim();
+      const item = second?.trim();
+      const details = rest.join(' | ').trim();
+      
+      return (
+        <div className="flex items-start gap-2 py-1">
+          <span className="text-electric-blue font-mono text-sm flex-shrink-0">•</span>
+          <div className="flex-1">
+            <span className="font-semibold text-text-primary">{quantity}</span>
+            <span className="mx-2 text-text-secondary">×</span>
+            <span className="text-text-primary">{item}</span>
+            {details && (
+              <span className="text-text-secondary ml-2">({details})</span>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Checklist format: Task | Priority or Area | Task
+    return (
+      <div className="flex items-start gap-2 py-1">
+        <span className="text-electric-blue font-mono text-sm flex-shrink-0">•</span>
+        <div className="flex-1">
+          <span className="font-semibold text-text-primary">{first}</span>
+          <span className="text-text-secondary ml-2">— {second}</span>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex items-start gap-2 py-1">
+      <span className="text-electric-blue font-mono text-sm flex-shrink-0">•</span>
+      <span className="text-text-primary">{cells[0]}</span>
+    </div>
+  );
+};
 
 export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererProps) {
   return (
@@ -21,21 +102,113 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          // Tables with mobile-friendly scrolling
-          table: ({ node, ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-lg border border-border-subtle">
-              <table className="min-w-full table-auto" {...props} />
-            </div>
-          ),
-          thead: ({ node, ...props }) => (
-            <thead className="bg-surface-elevated" {...props} />
-          ),
+          // Enhanced table rendering with material list/checklist detection
+          table: ({ node, children, ...props }) => {
+            // Check if this is a material list or checklist based on surrounding content
+            const isMaterialTable = isMaterialListOrChecklist(content);
+            
+            if (isMaterialTable) {
+              // For material lists, we'll use a custom bullet-point format
+              return (
+                <div className="my-6 p-4 bg-surface-elevated/30 rounded-lg border border-electric-blue/20">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-electric-blue text-lg">📋</span>
+                    <span className="text-electric-blue font-semibold text-sm">
+                      Material List / Checklist
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {/* The table content will be processed by custom tbody/tr components */}
+                    <table className="w-full material-list-table" {...props}>
+                      {children}
+                    </table>
+                  </div>
+                </div>
+              );
+            }
+            
+            // Standard table rendering for non-material lists
+            return (
+              <div className="overflow-x-auto my-4 rounded-lg border border-border-subtle">
+                <table className="min-w-full table-auto" {...props}>
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          
+          // Custom thead for material lists
+          thead: ({ node, children, ...props }) => {
+            const isMaterialTable = isMaterialListOrChecklist(content);
+            
+            if (isMaterialTable) {
+              // Hide the table header for material lists
+              return null;
+            }
+            
+            return (
+              <thead className="bg-surface-elevated" {...props}>
+                {children}
+              </thead>
+            );
+          },
+          
+          // Custom tbody for material lists
+          tbody: ({ node, children, ...props }) => {
+            const isMaterialTable = isMaterialListOrChecklist(content);
+            
+            if (isMaterialTable) {
+              // Convert tbody content to bullet points
+              return (
+                <div className="space-y-1" {...props}>
+                  {children}
+                </div>
+              );
+            }
+            
+            return <tbody {...props}>{children}</tbody>;
+          },
+          
+          // Custom tr for material lists
+          tr: ({ node, children, ...props }) => {
+            const isMaterialTable = isMaterialListOrChecklist(content);
+            
+            if (isMaterialTable) {
+              // Convert table row to bullet point
+              return (
+                <div className="table-row-bullet" {...props}>
+                  {children}
+                </div>
+              );
+            }
+            
+            return <tr {...props}>{children}</tr>;
+          },
+          
+          // Standard table headers
           th: ({ node, ...props }) => (
             <th className="px-4 py-2 text-left text-sm font-semibold text-text-primary border-b border-border-subtle" {...props} />
           ),
-          td: ({ node, ...props }) => (
-            <td className="px-4 py-2 text-sm border-b border-border-subtle" {...props} />
-          ),
+          
+          // Custom td for material lists
+          td: ({ node, children, ...props }) => {
+            const isMaterialTable = isMaterialListOrChecklist(content);
+            
+            if (isMaterialTable) {
+              // For material lists, collect cell content and format as bullet points
+              return (
+                <span className="table-cell-content" {...props}>
+                  {children}
+                </span>
+              );
+            }
+            
+            return (
+              <td className="px-4 py-2 text-sm border-b border-border-subtle" {...props}>
+                {children}
+              </td>
+            );
+          },
           
           // Enhanced code blocks
           pre: ({ node, ...props }) => (
@@ -79,15 +252,17 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
             <blockquote className="border-l-4 border-electric-blue pl-4 my-4 italic text-text-secondary bg-surface-elevated/50 py-2 rounded-r" {...props} />
           ),
           
-          // Lists with proper spacing
+          // Enhanced lists with better spacing and styling
           ul: ({ node, ...props }) => (
             <ul className="list-disc list-inside space-y-2 my-3 ml-4" {...props} />
           ),
           ol: ({ node, ...props }) => (
             <ol className="list-decimal list-inside space-y-2 my-3 ml-4" {...props} />
           ),
-          li: ({ node, ...props }) => (
-            <li className="text-text-primary" {...props} />
+          li: ({ node, children, ...props }) => (
+            <li className="text-text-primary leading-relaxed" {...props}>
+              {children}
+            </li>
           ),
           
           // Task list checkboxes

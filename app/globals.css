@@ -312,7 +312,44 @@
   @apply text-text-secondary italic;
 }
 
+/* Material List / Checklist Bullet Point Styling */
+.material-list-table .table-row-bullet {
+  @apply flex items-start gap-2 py-2 border-b border-border-subtle/20;
+}
 
+.material-list-table .table-row-bullet::before {
+  content: "•";
+  @apply text-electric-blue font-mono text-sm flex-shrink-0 mt-0.5;
+}
+
+.material-list-table .table-cell-content {
+  @apply inline-block mr-2;
+}
+
+.material-list-table .table-cell-content:first-child {
+  @apply font-semibold text-text-primary;
+}
+
+.material-list-table .table-cell-content:nth-child(2) {
+  @apply text-text-primary;
+}
+
+.material-list-table .table-cell-content:nth-child(3) {
+  @apply text-text-secondary;
+}
+
+.material-list-table .table-cell-content:nth-child(4) {
+  @apply text-text-secondary text-sm;
+}
+
+.material-list-table .table-cell-content:not(:first-child)::before {
+  content: " • ";
+  @apply text-electric-blue/50;
+}
+
+.material-list-table .table-cell-content:empty {
+  @apply hidden;
+}
 
 @layer base {
   * {
