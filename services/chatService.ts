@@ -350,6 +350,113 @@ export class ChatService {
     return this.streamVisionResponse(sessionId, content, onChunk, useDeepReasoning, useNuclear);
   }
 
+  async searchCode(
+    sessionId: string,
+    query: string,
+    onChunk?: (text: string) => void
+  ): Promise<ChatMessage> {
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    
+    try {
+      console.log('Searching NEC code:', query);
+      
+      const response = await streamRequest(
+        `/api/chat/sessions/${sessionId}/search-code`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query }),
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = response.statusText;
+        try {
+          const errorText = await response.text();
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || response.statusText;
+        } catch {
+          // Use status text if parsing fails
+        }
+        
+        // Special handling for 404 (endpoint not implemented yet)
+        if (response.status === 404) {
+          throw new Error('NEC code search is not yet implemented on the backend. Please try again later.');
+        }
+        
+        throw new APIError(response.status, errorMessage);
+      }
+
+      reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let messageBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6).trim();
+              // Skip empty lines
+              if (!jsonStr) continue;
+              
+              const data = JSON.parse(jsonStr);
+              
+              switch (data.type) {
+                case 'content':
+                  messageBuffer += data.content;
+                  onChunk?.(data.content);
+                  break;
+                case 'complete':
+                  console.log('Code search completed');
+                  break;
+                case 'error':
+                  throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e, 'Line:', line);
+              // Continue processing other lines instead of breaking
+            }
+          }
+        }
+      }
+
+      // Return the complete message
+      return {
+        id: 'temp-' + Date.now(),
+        sessionId: sessionId,
+        role: 'assistant',
+        content: messageBuffer,
+        timestamp: new Date(),
+        metadata: {
+          code_search: true
+        }
+      };
+    } catch (error) {
+      console.error('Code search error:', error);
+      throw error;
+    } finally {
+      if (reader) {
+        try {
+          reader.releaseLock();
+        } catch (e) {
+          console.warn('Failed to release reader lock:', e);
+        }
+      }
+    }
+  }
+
   async sendMessageWithFile(
     sessionId: string,
     content: string,

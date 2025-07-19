@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText } from 'lucide-react';
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 
 interface ChatInputProps {
-  onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean) => void;
+  onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean, useCodeSearch?: boolean) => void;
   onSendMessageWithFile?: (message: string, file: File) => Promise<void>;
   onVoiceRecord?: () => void;
   isStreaming: boolean;
@@ -27,6 +27,7 @@ export function ChatInput({
   const [isRecording, setIsRecording] = useState(false);
   const [deepThinking, setDeepThinking] = useState(false);
   const [nuclearThinking, setNuclearThinking] = useState(false);
+  const [codeSearchMode, setCodeSearchMode] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -45,13 +46,28 @@ export function ChatInput({
   const toggleDeepThinking = () => {
     const newState = !deepThinking;
     setDeepThinking(newState);
-    if (newState) setNuclearThinking(false);
+    if (newState) {
+      setNuclearThinking(false);
+      setCodeSearchMode(false);
+    }
   };
   
   const toggleNuclear = () => {
     const newState = !nuclearThinking;
     setNuclearThinking(newState);
-    if (newState) setDeepThinking(false);
+    if (newState) {
+      setDeepThinking(false);
+      setCodeSearchMode(false);
+    }
+  };
+
+  const toggleCodeSearch = () => {
+    const newState = !codeSearchMode;
+    setCodeSearchMode(newState);
+    if (newState) {
+      setDeepThinking(false);
+      setNuclearThinking(false);
+    }
   };
 
   const clearSelectedFile = useCallback(() => {
@@ -134,13 +150,14 @@ export function ChatInput({
       );
       clearSelectedFile();
     } else if (message.trim()) {
-      // Regular text message
-      onSendMessage(message.trim(), deepThinking, nuclearThinking);
+      // Pass code search state
+      onSendMessage(message.trim(), deepThinking, nuclearThinking, codeSearchMode);
     }
     
     setMessage('');
     setDeepThinking(false);
     setNuclearThinking(false);
+    setCodeSearchMode(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -194,7 +211,13 @@ export function ChatInput({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={selectedFile ? "Add a message about this image (optional)..." : "Type your message here..."}
+              placeholder={
+                selectedFile 
+                  ? "Add a message about this image (optional)..." 
+                  : codeSearchMode 
+                    ? "Search NEC code..." 
+                    : "Type your message here..."
+              }
               className="w-full bg-transparent text-white placeholder-[#4a5568] focus:outline-none text-[15px] px-6 pt-5 pb-14"
               disabled={disabled || isStreaming || isProcessingFile}
             />
@@ -272,6 +295,21 @@ export function ChatInput({
                 >
                   <Radiation className={`w-5 h-5 ${nuclearThinking ? 'animate-pulse' : ''}`} />
                 </button>
+
+                {/* Code Search Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleCodeSearch}
+                  disabled={disabled || isStreaming || !!selectedFile}
+                  className={`p-2.5 rounded-lg transition-all ${
+                    codeSearchMode
+                      ? 'bg-orange-600/20 text-orange-600 ring-2 ring-orange-600/30'
+                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={selectedFile ? 'Not available with images' : codeSearchMode ? 'Code search mode active' : 'Search NEC code'}
+                >
+                  <BookOpenText className={`w-5 h-5 ${codeSearchMode ? 'animate-pulse' : ''}`} />
+                </button>
               </div>
 
               {/* Right side - Send button */}
@@ -297,6 +335,13 @@ export function ChatInput({
                 <div className="flex items-center gap-2 text-sm text-red-600 font-semibold animate-fadeInUp">
                   <Radiation className="w-4 h-4 animate-pulse" />
                   <span>☢️ Nuclear mode active - Expensive!</span>
+                </div>
+              )}
+
+              {codeSearchMode && !selectedFile && (
+                <div className="flex items-center gap-2 text-sm text-orange-600 animate-fadeInUp">
+                  <BookOpenText className="w-4 h-4 animate-pulse" />
+                  <span>Code search mode active</span>
                 </div>
               )}
 

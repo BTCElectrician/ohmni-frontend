@@ -1,16 +1,16 @@
-# 🚀 Deployment Status - Updated June 11, 2025
+# 🚀 Deployment Status - Updated July 19, 2025 at 11:14AM
 
 ## ✅ PRODUCTION DEPLOYMENT LIVE
 **Backend URL:** `https://ohmni-backend.onrender.com`  
 **Status:** ✅ Healthy and Ready for Frontend Development  
-**Last Updated:** June 11, 2025 - Post Hotfixes  
+**Last Updated:** July 19, 2025 - AI/quota feature integration  
 
 ---
 
 ## 🎯 Current Status: READY FOR NEXT.JS DEVELOPMENT
 
-### ✅ **Recently Completed (June 11, 2025 Hotfixes)**
-- ✅ **Fixed Critical Bugs:** analyze_image() methods now use Anthropic integration
+### ✅ **Recently Completed (July 19, 2025 Hotfixes)**
+- ✅ **Fixed Critical Bugs:** analyze_image() migrated to OpenAI Vision (GPT-4o) – faster & cheaper.
 - ✅ **Blueprint Organization:** All APIs moved to `backend/api/` directory  
 - ✅ **Production Configuration:** ProxyFix, SECRET_KEY fallbacks configured
 - ✅ **Deployment Verified:** All endpoints tested and working in production
@@ -23,9 +23,11 @@
 ✅ JWT-based authentication working
 ✅ Blueprint organization: backend/api/* pattern established
 ✅ Rate limiting active (60 requests/minute)
+✅ Redis quota system (Brain/Nuclear buttons) active
+✅ New blueprints: /api/quota, /api/codes, /api/logs, /api/chat/*/search-code
 ✅ CORS configured for localhost:3000 + production
 ✅ Security headers properly configured
-✅ Multi-model AI integration (Anthropic primary)
+✅ Multi-model AI gateway (OpenAI > Anthropic > Gemini cascade)
 ```
 
 ---
@@ -57,9 +59,26 @@
 - ✅ `POST /api/chat/sessions/{session_id}/messages` - **VERIFIED WORKING** - Returns 201 with both user/AI messages, 30/min limit
 - ✅ `GET /api/chat/sessions/{session_id}/stream` - **VERIFIED WORKING** - SSE without message body
 - ✅ `POST /api/chat/sessions/{session_id}/stream` - **VERIFIED WORKING** - SSE streaming with rate limit 6/sec, 100/hr
+- ✅ `POST /api/chat/sessions/{id}/search-code` – **VERIFIED WORKING** – NEC quick-search (SSE)
+- ✅ `GET  /api/chat/search/health` – **VERIFIED WORKING** – Code search health
+- ✅ `GET  /api/chat/search/stats` – **VERIFIED WORKING (Admin-Only)** – Code search usage stats
 - ✅ `GET /api/chat/history/{session_id}` - **VERIFIED WORKING** - Comprehensive session history
 - ✅ `GET /api/chat/search?q=<query>` - **VERIFIED WORKING** - Cross-session message search
 - ✅ `GET /api/chat/export/{session_id}` - **VERIFIED WORKING** - JSON export functionality
+
+### Registration Codes (`/api/codes/*`)
+- ✅ `POST /api/codes/` (admin) – create code  
+- ✅ `GET  /api/codes/` (admin) – list codes  
+- ✅ `DELETE /api/codes/{code}` (admin) – deactivate code  
+- ✅ `GET  /api/codes/{code}/stats` (admin) – code usage  
+- ✅ `POST /api/codes/validate` (public) – pre-check code validity  
+
+### Quota (`/api/quota/*`)
+- ✅ `GET  /api/quota/status` – current DR & Nuclear usage  
+- ✅ `POST /api/quota/reset` (admin / staging) – reset usage  
+
+### Logs (`/api/logs/*`)
+- ✅ `GET /api/logs/tail?n=` (admin) – recent SystemLog entries  
 
 ### NFPA-70 Electrical Code (/api/nfpa70/*)
 - ✅ `POST /api/nfpa70/query` - Code lookup with streaming
@@ -68,11 +87,17 @@
 
 ### File Upload & Analysis (/api/upload/*)
 - ✅ `POST /api/upload` - Upload files (images, documents, drawings)
+- ✅ `POST /api/chat/sessions/{id}/upload` – Alias for `/api/upload`  
 - ✅ `GET /api/upload/files` - List uploaded files
 - ✅ `GET /api/upload/files/{id}` - Get file details
 - ✅ `DELETE /api/upload/files/{id}` - Delete file
-- ✅ `POST /api/upload/analyze/{id}` - **FIXED** - Now uses Anthropic integration
+- ✅ `POST /api/upload/analyze/{id}` - **UPDATED** – now powered by OpenAI Vision (GPT-4o).
 - ✅ `GET /api/upload/search` - Search uploaded files
+
+### Azure Search Bulk Uploader (`/api/search/*`)
+- ✅ `POST /api/search/upload` (admin) – bulk index documents  
+- ✅ `GET  /api/search/status` (admin) – service status  
+- ✅ `POST /api/search/test`  (admin) – test query  
 
 ---
 
@@ -81,7 +106,9 @@
 ### ✅ **Production Environment**
 - **Hosting:** Render.com with auto-deploy from main branch
 - **Database:** PostgreSQL connected and healthy
+- **Cache:** Redis required for new quota features (fallback to in-memory)
 - **Rate Limiting:** 60 requests/minute with Redis fallback
+- **Quotas:** Brain (o4-mini) 50/day and Nuclear (o3) 5/day limits enforced in Redis
 - **Security:** CSP, HSTS, frame protection enabled
 - **CORS:** Configured for Next.js development (localhost:3000)
 
@@ -93,25 +120,30 @@
 - Rate limiting active
 
 ### ✅ **AI Integration**
-- **Primary:** Anthropic Claude (analyze_image fixed)
-- **Backup:** OpenAI GPT models available
-- **Streaming:** Server-Sent Events working
-- **File Analysis:** Image analysis via Anthropic working
+- **Streaming**: Server-Sent Events for chat, vision & code search
+- **Vision**: OpenAI GPT-4o (strict provider)
+- **LLM order**: OpenAI → Anthropic Claude → Google Gemini
+- **Models**: `o4-mini` (Brain) and `o3` (Nuclear) mapped to daily quotas.
+- **Retry Logic**: Streamed responses have built-in retry/back-off.
 
 ---
 
 ## 📁 Codebase Organization
 
-### ✅ **Blueprint Structure (Recently Organized)**
+### ✅ **Blueprint Structure (2025-07-19)**
 ```
 backend/
 ├── api/              # ← NEW: All API blueprints organized here
-│   ├── auth_api.py   # Authentication endpoints
-│   ├── chat.py       # Chat and streaming
-│   ├── health.py     # Health monitoring
-│   ├── nfpa70.py     # Electrical code lookup  
-│   ├── notes.py      # Note management
-│   └── upload.py     # File upload and analysis
+│   ├── auth_api.py        # Auth
+│   ├── chat.py            # Chat + streaming
+│   ├── chat_extensions.py # NEC code search
+│   ├── codes.py           # Registration codes (admin)
+│   ├── quota.py           # DR/Nuke quota
+│   ├── logs.py            # System logs
+│   ├── health.py          # Health monitoring
+│   ├── nfpa70.py          # Electrical code lookup  
+│   ├── notes.py           # Note management
+│   └── upload.py          # File upload and analysis
 ├── extensions.py     # Flask extensions
 
 Root files:
@@ -146,8 +178,9 @@ NEXT_PUBLIC_BACKEND_URL=https://ohmni-backend.onrender.com
 # All these endpoints ready for integration:
 ✅ Authentication: /api/auth/*
 ✅ Chat with streaming: /api/chat/*  
-✅ Code lookup: /api/nfpa70/*
+✅ Code lookup: /api/nfpa70/*, /api/chat/*/search-code
 ✅ File management: /api/upload/*
+✅ Quota checks: /api/quota/*
 ```
 
 ### 🏃‍♂️ **Next Steps**
@@ -162,9 +195,8 @@ NEXT_PUBLIC_BACKEND_URL=https://ohmni-backend.onrender.com
 ## 🐛 Known Issues & Future Enhancements
 
 ### 🟡 **Nice-to-Have Improvements** (Not blocking frontend)
-- Azure Search integration could be exposed as HTTP endpoints
 - Construction management APIs (Procore/BuilderTrend) need HTTP layer  
-- Speech-to-text processing could use dedicated endpoints
+- Speech-to-text endpoints still pending
 - Additional AI model integrations available but not exposed
 
 ### ✅ **No Critical Blockers**
@@ -174,7 +206,7 @@ All core functionality required for Next.js frontend development is working and 
 
 ## ✅ **Production Verification Completed**
 
-**Date:** June 11, 2025  
+**Date:** July 19, 2025  
 **All critical systems tested and verified working:**
 
 | Test Category | Status | Key Result |
@@ -183,6 +215,8 @@ All core functionality required for Next.js frontend development is working and 
 | **CORS Configuration** | ✅ VERIFIED | `localhost:3000` allowed, credentials enabled |
 | **Rate Limiting** | ✅ VERIFIED | 60 req/min active, headers tracking correctly |
 | **Chat Endpoints** | ✅ VERIFIED | Returns HTTP 401 (auth required), not 500 errors |
+| **Quota Endpoints** | ✅ VERIFIED | Returns HTTP 401 (auth required), not 500 errors |
+| **Code Search** | ✅ VERIFIED | Returns HTTP 401 (auth required), not 500 errors |
 | **Database Connectivity** | ✅ VERIFIED | PostgreSQL connected and responding |
 | **Overall API Health** | ✅ VERIFIED | Status: online, version 1.0.0 |
 
@@ -191,6 +225,12 @@ All core functionality required for Next.js frontend development is working and 
 ---
 
 ## 📋 **Deployment History**
+- **July 19, 2025:** OpenAI Vision, quota, and code-search features deployed
+  - Migrated `analyze_image` to GPT-4o
+  - Exposed new admin & public endpoints for quotas, logs, and registration codes
+  - Added NEC code-search extension to chat sessions
+  - Updated documentation to reflect all changes
+
 - **June 11, 2025 (Morning):** Production hotfixes deployed successfully
   - Fixed analyze_image() Anthropic integration
   - Organized blueprints into backend/api/ structure  

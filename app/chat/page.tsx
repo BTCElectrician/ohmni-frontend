@@ -197,7 +197,8 @@ export default function ChatPage() {
   const sendMessage = async (
     content: string, 
     useDeepReasoning: boolean = false,
-    useNuclear: boolean = false
+    useNuclear: boolean = false,
+    useCodeSearch: boolean = false
   ) => {
     // Hide prompts once user starts chatting
     setShowPrompts(false);
@@ -222,7 +223,7 @@ export default function ChatPage() {
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
         // Now send the message with the new session
-        await sendMessageWithSession(session.id, content, useDeepReasoning, useNuclear);
+        await sendMessageWithSession(session.id, content, useDeepReasoning, useNuclear, useCodeSearch);
         setIsCreatingNewSession(false); // Clear flag after message is sent
         return;
       } catch (error) {
@@ -245,7 +246,7 @@ export default function ChatPage() {
       }
     }
 
-    sendMessageWithSession(currentSession.id, content, useDeepReasoning, useNuclear);
+    sendMessageWithSession(currentSession.id, content, useDeepReasoning, useNuclear, useCodeSearch);
   };
 
   const sendMessageWithFile = async (content: string, file: File): Promise<void> => {
@@ -368,7 +369,8 @@ export default function ChatPage() {
     sessionId: string, 
     content: string,
     useDeepReasoning: boolean = false,
-    useNuclear: boolean = false
+    useNuclear: boolean = false,
+    useCodeSearch: boolean = false
   ) => {
     // Track first message properly - check if this is the first message for this session
     const isFirstMessage = !hasFirstMessage;
@@ -403,16 +405,30 @@ export default function ChatPage() {
     setIsStreaming(true);
 
     try {
-      const aiResponse = await chatService.sendMessage(
-        sessionId, 
-        content, 
-        (chunk: string) => {
-          // Update message content as chunks arrive
-          updateMessage(tempAiMessageId, (prev) => prev + chunk);
-        },
-        useDeepReasoning,
-        useNuclear
-      );
+      let aiResponse;
+      
+      // Handle code search differently
+      if (useCodeSearch) {
+        aiResponse = await chatService.searchCode(
+          sessionId,
+          content,
+          (chunk: string) => {
+            updateMessage(tempAiMessageId, (prev) => prev + chunk);
+          }
+        );
+      } else {
+        // Existing chat flow
+        aiResponse = await chatService.sendMessage(
+          sessionId, 
+          content, 
+          (chunk: string) => {
+            // Update message content as chunks arrive
+            updateMessage(tempAiMessageId, (prev) => prev + chunk);
+          },
+          useDeepReasoning,
+          useNuclear
+        );
+      }
       
       // The message content should already be updated via streaming
       // Only update if there's additional content or metadata
