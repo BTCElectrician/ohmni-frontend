@@ -60,6 +60,7 @@ export interface ChatMessage {
     model_used?: string;
     reasoning_remaining?: number;
     nuclear_remaining?: number;
+    code_search?: boolean;
   };
   // ADD THIS:
   attachments?: {

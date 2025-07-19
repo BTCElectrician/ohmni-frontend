@@ -127,7 +127,7 @@ export async function streamRequest(
   };
   
   // Add SSE header for streaming endpoints
-  if (endpoint.includes('/stream')) {
+  if (endpoint.includes('/stream') || endpoint.includes('/search-code')) {
     headers['Accept'] = 'text/event-stream';
   }
   
