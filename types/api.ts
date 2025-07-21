@@ -13,11 +13,15 @@ export interface User {
   username: string;
 }
 
-export interface AuthResponse {
+export interface AuthPayload {
   access_token: string;
   user: User;
   message?: string;
 }
+
+// Convenient aliases for wrapped auth responses
+export type AuthApiResponse = ApiResponse<AuthPayload>;
+export type RegisterApiResponse = ApiResponse<{ user: User }>;
 
 // Chat Types - Fixed to match backend ChatSession model
 export interface ChatSession {

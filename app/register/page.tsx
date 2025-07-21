@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import type { RegisterApiResponse } from '@/types/api'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -49,9 +50,15 @@ export default function RegisterPage() {
         }),
       })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || 'Registration failed')
+      const apiRes: RegisterApiResponse = await response.json()
+      
+      if (!response.ok || apiRes.error) {
+        throw new Error(apiRes.error ?? apiRes.message ?? 'Registration failed')
+      }
+
+      // Show success message if available
+      if (apiRes.message) {
+        console.log('✅ Registration successful:', apiRes.message)
       }
 
       router.push('/login?registered=true')

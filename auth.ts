@@ -2,7 +2,7 @@
 import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
-import type { AuthResponse } from "@/types/api";
+import type { AuthApiResponse } from "@/types/api";
 
 // Extend the built-in session/token types
 declare module "next-auth" {
@@ -57,21 +57,23 @@ export const config: NextAuthConfig = {
             throw new Error(errorData.message || 'Authentication failed');
           }
 
-          const data: AuthResponse = await response.json();
+          const apiRes: AuthApiResponse = await response.json();
+
+          if (!apiRes.data?.access_token) {
+            throw new Error(apiRes.message || 'Invalid credentials');
+          }
+
+          const { access_token, user } = apiRes.data;
           
           // apiRequest already parses JSON, so we have the data directly
-          console.log('✅ Login response:', data);
+          console.log('✅ Login response:', apiRes);
           
-          if (data.access_token) {
-            return {
-              id: data.user?.id || String(credentials.email),
-              email: data.user?.email || String(credentials.email),
-              name: data.user?.fullname || data.user?.username,
-              accessToken: data.access_token,
-            };
-          }
-          
-          throw new Error(data.message || 'Invalid credentials');
+          return {
+            id: user?.id || String(credentials.email),
+            email: user?.email || String(credentials.email),
+            name: user?.fullname || user?.username,
+            accessToken: access_token,
+          };
         } catch (error) {
           console.error('❌ Login error:', error);
           throw new Error(error instanceof Error ? error.message : 'Authentication failed');

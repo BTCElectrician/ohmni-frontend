@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { AuthApiResponse, RegisterApiResponse } from '@/types/api'
 
 export default function TestAuthPage() {
   const [email, setEmail] = useState('')
@@ -21,7 +22,8 @@ export default function TestAuthPage() {
       })
       
       const data = await response.text()
-      setResult(`Login Test:\nStatus: ${response.status}\nResponse: ${data}\n\nEmail: ${email}\nPassword length: ${password.length}`)
+      const apiRes = JSON.parse(data) as AuthApiResponse;
+      setResult(`Login Test:\nStatus: ${response.status}\nResponse: ${JSON.stringify(apiRes, null, 2)}\n\nEmail: ${email}\nPassword length: ${password.length}`)
     } catch (error) {
       setResult(`Error: ${error}`)
     }
@@ -44,7 +46,8 @@ export default function TestAuthPage() {
       })
       
       const data = await response.text()
-      setResult(`Register Test:\nStatus: ${response.status}\nResponse: ${data}`)
+      const apiRes = JSON.parse(data) as RegisterApiResponse;
+      setResult(`Register Test:\nStatus: ${response.status}\nResponse: ${JSON.stringify(apiRes, null, 2)}`)
     } catch (error) {
       setResult(`Error: ${error}`)
     }

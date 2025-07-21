@@ -1,4 +1,5 @@
 import { getSession } from 'next-auth/react';
+import type { AuthApiResponse } from '@/types/api';
 
 export async function getAccessToken(): Promise<string | null> {
   const session = await getSession();
@@ -21,8 +22,10 @@ export async function getAccessToken(): Promise<string | null> {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        return data.access_token;
+        const apiRes: AuthApiResponse = await response.json();
+        if (apiRes.data?.access_token) {
+          return apiRes.data.access_token;
+        }
       }
     }
   } catch (e) {

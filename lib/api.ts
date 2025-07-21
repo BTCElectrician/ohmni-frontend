@@ -76,9 +76,29 @@ export async function apiRequest<T = unknown>(
   
   // Handle empty responses
   const text = await response.text();
-  const result = text ? JSON.parse(text) : {} as T;
+  if (!text) {
+    return {} as T;
+  }
+  
+  const result = JSON.parse(text);
   console.log('API Response:', result);
-  return result;
+  
+  // Auto-unwrap standardized responses
+  // If response has 'success' field, it's using the new format
+  if (result && typeof result === 'object' && 'success' in result) {
+    if (result.success === false) {
+      throw new APIError(
+        response.status,
+        result.error || 'Request failed',
+        result
+      );
+    }
+    // Return the data field if it exists, otherwise return the whole result
+    return (result.data !== undefined ? result.data : result) as T;
+  }
+  
+  // For legacy responses without 'success' field, return as-is
+  return result as T;
 }
 
 // Updated convenience methods to support skipAuth parameter

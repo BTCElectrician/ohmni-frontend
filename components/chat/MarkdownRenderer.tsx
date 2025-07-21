@@ -5,6 +5,7 @@ import rehypeHighlight from 'rehype-highlight';
 import Image from 'next/image';
 import 'highlight.js/styles/github-dark.css';
 import { ReactNode } from 'react';
+import React from 'react';
 
 interface MarkdownRendererProps {
   content: string;
@@ -109,6 +110,19 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
             
             if (isMaterialTable) {
               // For material lists, we'll use a custom bullet-point format
+              // Process the table content and convert to bullet points
+              const tableContent = React.Children.toArray(children);
+              const rows = tableContent.filter(child => 
+                React.isValidElement(child) && child.type === 'tbody'
+              ).flatMap(tbody => {
+                if (React.isValidElement(tbody) && tbody.props.children) {
+                  return React.Children.toArray(tbody.props.children);
+                }
+                return [];
+              }).filter(child => 
+                React.isValidElement(child) && child.type === 'tr'
+              );
+              
               return (
                 <div className="my-6 p-4 bg-surface-elevated/30 rounded-lg border border-electric-blue/20">
                   <div className="flex items-center gap-2 mb-4">
@@ -118,10 +132,39 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {/* The table content will be processed by custom tbody/tr components */}
-                    <table className="w-full material-list-table" {...props}>
-                      {children}
-                    </table>
+                    {rows.map((row, index) => {
+                      if (React.isValidElement(row) && row.props.children) {
+                        const cells = React.Children.toArray(row.props.children)
+                          .filter(child => React.isValidElement(child) && child.type === 'td')
+                          .map(cell => {
+                            if (React.isValidElement(cell) && cell.props.children) {
+                              return React.Children.toArray(cell.props.children).join(' ');
+                            }
+                            return '';
+                          });
+                        
+                        return (
+                          <div key={index} className="flex items-start gap-2 py-1">
+                            <span className="text-electric-blue font-mono text-sm flex-shrink-0">•</span>
+                            <div className="flex-1">
+                              {cells.length >= 2 ? (
+                                <>
+                                  <span className="font-semibold text-text-primary">{cells[0]}</span>
+                                  <span className="mx-2 text-text-secondary">×</span>
+                                  <span className="text-text-primary">{cells[1]}</span>
+                                  {cells.length > 2 && (
+                                    <span className="text-text-secondary ml-2">({cells.slice(2).join(' | ')})</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-text-primary">{cells[0]}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
                 </div>
               );
@@ -158,12 +201,9 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
             const isMaterialTable = isMaterialListOrChecklist(content);
             
             if (isMaterialTable) {
-              // Convert tbody content to bullet points
-              return (
-                <div className="space-y-1" {...props}>
-                  {children}
-                </div>
-              );
+              // For material lists, we need to process the children differently
+              // Don't render tbody at all for material lists - let the tr components handle it
+              return null;
             }
             
             return <tbody {...props}>{children}</tbody>;
@@ -174,12 +214,9 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
             const isMaterialTable = isMaterialListOrChecklist(content);
             
             if (isMaterialTable) {
-              // Convert table row to bullet point
-              return (
-                <div className="table-row-bullet" {...props}>
-                  {children}
-                </div>
-              );
+              // For material lists, convert to bullet points outside the table structure
+              // We'll handle this in the table component itself
+              return null;
             }
             
             return <tr {...props}>{children}</tr>;
