@@ -25,6 +25,8 @@ const nextConfig = {
     optimizePackageImports: ['@tanstack/react-query', 'lucide-react'],
   },
   
+
+  
   // Ignore ESLint errors during production builds
   eslint: {
     ignoreDuringBuilds: true,

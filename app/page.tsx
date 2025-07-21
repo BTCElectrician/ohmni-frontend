@@ -70,6 +70,8 @@ export default function HomePage() {
             href="/construction"
             buttonText="Open Tool"
             delay="0.2s"
+            showComingSoon={true}
+            toastPosition="right"
           />
           
           <FeatureCard
@@ -80,6 +82,8 @@ export default function HomePage() {
             buttonText="Upload Now"
             delay="0.3s"
             isUpload={true}
+            showComingSoon={true}
+            toastPosition="left"
           />
           
           <FeatureCard
@@ -89,6 +93,8 @@ export default function HomePage() {
             href="#"
             buttonText="Start Prefab"
             delay="0.4s"
+            showComingSoon={true}
+            toastPosition="right"
           />
         </div>
         

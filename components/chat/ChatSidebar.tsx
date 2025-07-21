@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, Folder, Trash2, PencilIcon } from 'lucide-react';
+import { Folder, Trash2, PencilIcon, Home, MessageSquareText } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
 import { chatService } from '@/services/chatService';
 import { ChatSession } from '@/types/api';
@@ -9,6 +9,7 @@ import { useChatSessions } from '@/app/hooks/useChatSessions';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { SESSION_UPDATED_EVENT } from '@/lib/events';
+import toast from 'react-hot-toast';
 
 // Editable Session Name Component
 function EditableSessionName({ 
@@ -212,12 +213,21 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     <div className="w-full bg-deep-navy border-r border-electric-blue/20 text-text-secondary flex flex-col h-full min-h-0 overflow-hidden">
       {/* Fixed Top Section */}
       <div className="flex-shrink-0">
-        {/* New Chat Button */}
+        {/* Home Button - NEW */}
+        <button
+          onClick={() => window.location.href = '/'}
+          className="m-3 mb-2 flex items-center gap-3 w-[calc(100%-1.5rem)] p-3 bg-transparent border border-border-subtle rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50 transition-colors"
+        >
+          <Home className="w-5 h-5" />
+          <span>Home</span>
+        </button>
+
+        {/* New Chat Button - EXISTING (update margin) */}
         <button
           onClick={createNewChat}
-          className="m-3 flex items-center gap-3 w-[calc(100%-1.5rem)] p-3 bg-transparent border border-electric-blue/30 rounded-lg text-text-primary hover:bg-surface-elevated transition-colors"
+          className="mx-3 mb-3 flex items-center gap-3 w-[calc(100%-1.5rem)] p-3 bg-transparent border border-electric-blue/30 rounded-lg text-text-primary hover:bg-surface-elevated transition-colors"
         >
-          <PlusCircle className="w-5 h-5" />
+          <MessageSquareText className="w-5 h-5" />
           <span>New chat</span>
         </button>
         
@@ -246,7 +256,21 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
             Projects
           </div>
           <div className="px-2 mb-0">
-            <button className="w-full flex items-center gap-3 p-2 rounded hover:bg-surface-elevated transition-colors">
+            <button 
+              onClick={() => toast('Coming soon! 🚧', { 
+                icon: '📋',
+                position: 'top-left',
+                style: {
+                  background: '#1e293b',
+                  color: '#e2e8f0',
+                  border: '1px solid #475569',
+                  fontSize: '14px',
+                  padding: '12px 16px',
+                  marginLeft: '20px'
+                }
+              })}
+              className="w-full flex items-center gap-3 p-2 rounded hover:bg-surface-elevated transition-colors"
+            >
               <Folder className="w-4 h-4" />
               <span className="text-sm">My Jobs</span>
             </button>

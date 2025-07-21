@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface FeatureCardProps {
   icon: string;
@@ -12,6 +13,8 @@ interface FeatureCardProps {
   buttonText: string;
   delay?: string;
   isUpload?: boolean;
+  showComingSoon?: boolean;
+  toastPosition?: 'left' | 'right' | 'center';
 }
 
 export function FeatureCard({
@@ -22,6 +25,8 @@ export function FeatureCard({
   buttonText,
   delay = '0s',
   isUpload = false,
+  showComingSoon = false,
+  toastPosition = 'center',
 }: FeatureCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -44,6 +49,25 @@ export function FeatureCard({
       const files = Array.from(e.dataTransfer.files);
       // TODO: Handle file upload
       console.log('Files dropped:', files);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (showComingSoon) {
+      e.preventDefault();
+      const position = toastPosition === 'left' ? 'top-left' : 
+                      toastPosition === 'right' ? 'top-right' : 'top-center';
+      toast('Coming soon! 🚧', { 
+        icon: '📋',
+        position: position as 'top-left' | 'top-right' | 'top-center',
+        style: {
+          background: '#1e293b',
+          color: '#e2e8f0',
+          border: '1px solid #475569',
+          fontSize: '14px',
+          padding: '12px 16px'
+        }
+      });
     }
   };
 
@@ -75,6 +99,14 @@ export function FeatureCard({
       </button>
     </div>
   );
+
+  if (showComingSoon) {
+    return (
+      <div className="block animate-fadeInUp cursor-pointer" onClick={handleClick}>
+        {content}
+      </div>
+    );
+  }
 
   if (isUpload) {
     return <div className="animate-fadeInUp">{content}</div>;
