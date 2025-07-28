@@ -124,6 +124,21 @@ The application uses **NextAuth 5.0.0-beta.28** with the App Router pattern:
 - Write meaningful commit messages
 - **Zero ESLint warnings** enforced in CI/CD
 
+### Quick Decisions
+
+- New API endpoint? → `app/api/` or `services/` for the client
+- New reusable UI? → `components/ui/`
+- Page-specific component? → `app/[page]/components/`
+- Business logic? → Backend API (never in frontend)
+- Auth logic? → `lib/auth/` or use existing hooks
+
+### Don't Do This
+
+- ❌ Direct database connections in frontend
+- ❌ Business logic in components
+- ❌ `any` types in TypeScript
+- ❌ Storing sensitive data in Zustand
+
 ### Key Dependencies
 
 - **Next.js 15.3.3** - React framework with App Router
