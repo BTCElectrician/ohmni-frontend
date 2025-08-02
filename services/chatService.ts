@@ -227,12 +227,11 @@ export class ChatService {
                     switch (data.type) {
                       case 'config':
                         // Store configuration data (excluding the type field)
-                        const configEvent = data as Extract<SSEEventType, { type: 'config' }>;
                         configData = {
-                          deep_reasoning: configEvent.deep_reasoning,
-                          model: configEvent.model,
-                          remaining_deep_reasoning: configEvent.remaining_deep_reasoning,
-                          remaining_nuclear: configEvent.remaining_nuclear
+                          deep_reasoning: 'deep_reasoning' in data ? data.deep_reasoning : undefined,
+                          model: 'model' in data ? data.model : undefined,
+                          remaining_deep_reasoning: 'remaining_deep_reasoning' in data ? data.remaining_deep_reasoning : undefined,
+                          remaining_nuclear: 'remaining_nuclear' in data ? data.remaining_nuclear : undefined
                         };
                         console.log('Config received:', configData);
                         break;
