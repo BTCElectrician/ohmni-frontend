@@ -1,5 +1,5 @@
 import { api, streamRequest, APIError } from '@/lib/api';
-import { ChatSession, ChatMessage, SSEEventType, ConfigEvent } from '@/types/api';
+import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
 import { visionService } from './visionService';
 
 export class ChatService {
@@ -194,7 +194,12 @@ export class ChatService {
         const decoder = new TextDecoder();
         let messageBuffer = '';
         let lastMessage: ChatMessage | null = null;
-        let configData: ConfigEvent | null = null;
+        let configData: {
+          deep_reasoning?: boolean;
+          model?: string;
+          remaining_deep_reasoning?: number;
+          remaining_nuclear?: number;
+        } | null = null;
         
         // Add buffer for incomplete JSON data
         let buffer = '';
@@ -221,8 +226,14 @@ export class ChatService {
                     
                     switch (data.type) {
                       case 'config':
-                        // Store configuration data (excluding the type field)
-                        configData = data as ConfigEvent;
+                        // Store configuration data - use parsed JSON object directly
+                        const parsedData = JSON.parse(line.slice(6));
+                        configData = {
+                          deep_reasoning: parsedData.deep_reasoning,
+                          model: parsedData.model,
+                          remaining_deep_reasoning: parsedData.remaining_deep_reasoning,
+                          remaining_nuclear: parsedData.remaining_nuclear
+                        };
                         console.log('Config received:', configData);
                         break;
                       case 'content':
@@ -281,11 +292,11 @@ export class ChatService {
           content: messageBuffer,
           timestamp: new Date(),
           metadata: configData ? {
-            deep_reasoning: configData.deep_reasoning || false,
-            nuclear_mode: configData.model === 'o3',  // Renamed from nuclear_reasoning
-            model_used: configData.model,
-            reasoning_remaining: configData.remaining_deep_reasoning,
-            nuclear_remaining: configData.remaining_nuclear
+            deep_reasoning: (configData as {deep_reasoning?: boolean})?.deep_reasoning || false,
+            nuclear_mode: (configData as {model?: string})?.model === 'o3',  // Renamed from nuclear_reasoning
+            model_used: (configData as {model?: string})?.model,
+            reasoning_remaining: (configData as {remaining_deep_reasoning?: number})?.remaining_deep_reasoning,
+            nuclear_remaining: (configData as {remaining_nuclear?: number})?.remaining_nuclear
           } : undefined
         };
       } catch (error) {
