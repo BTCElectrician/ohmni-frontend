@@ -194,7 +194,12 @@ export class ChatService {
         const decoder = new TextDecoder();
         let messageBuffer = '';
         let lastMessage: ChatMessage | null = null;
-        let configData: Extract<SSEEventType, { type: 'config' }> | null = null;
+        let configData: { 
+          deep_reasoning?: boolean;
+          model?: string;
+          remaining_deep_reasoning?: number;
+          remaining_nuclear?: number;
+        } | null = null;
         
         // Add buffer for incomplete JSON data
         let buffer = '';
@@ -221,8 +226,14 @@ export class ChatService {
                     
                     switch (data.type) {
                       case 'config':
-                        // Store configuration data
-                        configData = data;
+                        // Store configuration data (excluding the type field)
+                        const configEvent = data as Extract<SSEEventType, { type: 'config' }>;
+                        configData = {
+                          deep_reasoning: configEvent.deep_reasoning,
+                          model: configEvent.model,
+                          remaining_deep_reasoning: configEvent.remaining_deep_reasoning,
+                          remaining_nuclear: configEvent.remaining_nuclear
+                        };
                         console.log('Config received:', configData);
                         break;
                       case 'content':
