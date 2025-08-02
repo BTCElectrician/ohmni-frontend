@@ -168,6 +168,15 @@ export type SSEEventType =
   | { type: 'vision_result'; content: string }
   | { type: 'complete'; message?: string };
 
+// Add a specific type for config events to avoid type issues
+export interface ConfigEvent {
+  type: 'config';
+  deep_reasoning?: boolean;
+  model?: string;
+  remaining_deep_reasoning?: number;
+  remaining_nuclear?: number;
+}
+
 // Add type for offline queue
 export interface QueuedChatAction {
   id: string;

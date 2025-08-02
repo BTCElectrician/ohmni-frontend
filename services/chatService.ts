@@ -1,5 +1,5 @@
 import { api, streamRequest, APIError } from '@/lib/api';
-import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
+import { ChatSession, ChatMessage, SSEEventType, ConfigEvent } from '@/types/api';
 import { visionService } from './visionService';
 
 export class ChatService {
@@ -194,12 +194,7 @@ export class ChatService {
         const decoder = new TextDecoder();
         let messageBuffer = '';
         let lastMessage: ChatMessage | null = null;
-        let configData: { 
-          deep_reasoning?: boolean;
-          model?: string;
-          remaining_deep_reasoning?: number;
-          remaining_nuclear?: number;
-        } | null = null;
+        let configData: ConfigEvent | null = null;
         
         // Add buffer for incomplete JSON data
         let buffer = '';
@@ -227,12 +222,7 @@ export class ChatService {
                     switch (data.type) {
                       case 'config':
                         // Store configuration data (excluding the type field)
-                        configData = {
-                          deep_reasoning: 'deep_reasoning' in data ? data.deep_reasoning : undefined,
-                          model: 'model' in data ? data.model : undefined,
-                          remaining_deep_reasoning: 'remaining_deep_reasoning' in data ? data.remaining_deep_reasoning : undefined,
-                          remaining_nuclear: 'remaining_nuclear' in data ? data.remaining_nuclear : undefined
-                        };
+                        configData = data as ConfigEvent;
                         console.log('Config received:', configData);
                         break;
                       case 'content':
