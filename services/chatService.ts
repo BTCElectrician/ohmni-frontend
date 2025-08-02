@@ -195,70 +195,81 @@ export class ChatService {
         let messageBuffer = '';
         let lastMessage: ChatMessage | null = null;
         let configData: Extract<SSEEventType, { type: 'config' }> | null = null;
+        
+        // Add buffer for incomplete JSON data
+        let buffer = '';
 
         while (true) {
           try {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            // Accumulate data in buffer
+            buffer += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data: SSEEventType = JSON.parse(line.slice(6));
-                  
-                  switch (data.type) {
-                    case 'config':
-                      // Store configuration data
-                      configData = data;
-                      console.log('Config received:', configData);
-                      break;
-                    case 'content':
-                      messageBuffer += data.content;
-                      onChunk?.(data.content);
-                      break;
-                    case 'message':
-                      lastMessage = data.message;
-                      break;
-                    case 'error':
-                      throw new Error(data.error);
-                    case 'vision_start':
-                      // Show "Analyzing image..." indicator to user
-                      // Maybe update UI state to show loading spinner
-                      console.log('Vision analysis started');
-                      break;
-                    case 'vision_result':
-                      // Display the vision analysis result
-                      // This contains the text extracted from the image
-                      console.log('Vision analysis:', data.content);
-                      // Update UI to show the analysis
-                      if (data.content) {
+            // Process complete JSON frames only
+            let split;
+            while ((split = buffer.indexOf('\n\n')) !== -1) {
+              const frame = buffer.slice(0, split);  // Extract full JSON frame
+              buffer = buffer.slice(split + 2);      // Keep remaining data in buffer
+
+              // Process each line in the complete frame
+              frame.split('\n').forEach(line => {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data: SSEEventType = JSON.parse(line.slice(6));
+                    
+                    switch (data.type) {
+                      case 'config':
+                        // Store configuration data
+                        configData = data;
+                        console.log('Config received:', configData);
+                        break;
+                      case 'content':
                         messageBuffer += data.content;
                         onChunk?.(data.content);
-                      }
-                      break;
-                    case 'complete':
-                      // Stream is finished, clean up any loading states
-                      // Maybe close the stream or update UI
-                      console.log('Stream completed');
-                      break;
-                  }
-                } catch (e) {
-                  if (e instanceof Error && e.message.includes('application context')) {
-                    console.warn('Backend context error (auto-naming may be affected):', e.message);
-                  } else {
-                    console.error('Failed to parse SSE data:', e);
+                        break;
+                      case 'message':
+                        lastMessage = data.message;
+                        break;
+                      case 'error':
+                        throw new Error(data.error);
+                      case 'vision_start':
+                        // Show "Analyzing image..." indicator to user
+                        // Maybe update UI state to show loading spinner
+                        console.log('Vision analysis started');
+                        break;
+                      case 'vision_result':
+                        // Display the vision analysis result
+                        // This contains the text extracted from the image
+                        console.log('Vision analysis:', data.content);
+                        // Update UI to show the analysis
+                        if (data.content) {
+                          messageBuffer += data.content;
+                          onChunk?.(data.content);
+                        }
+                        break;
+                      case 'complete':
+                        // Stream is finished, clean up any loading states
+                        // Maybe close the stream or update UI
+                        console.log('Stream completed');
+                        break;
+                    }
+                  } catch (e) {
+                    if (e instanceof Error && e.message.includes('application context')) {
+                      console.warn('Backend context error (auto-naming may be affected):', e.message);
+                    } else {
+                      console.error('Failed to parse SSE data:', e);
+                    }
                   }
                 }
-              }
+              });
             }
-                      } catch (readError) {
-              // Handle read errors (connection issues)
-              console.error('Stream read error:', readError);
-              throw readError;
-            }
+          } catch (readError) {
+            // Handle read errors (connection issues)
+            console.error('Stream read error:', readError);
+            throw readError;
+          }
         }
 
         // If we got here, the stream completed successfully
@@ -396,39 +407,50 @@ export class ChatService {
 
       const decoder = new TextDecoder();
       let messageBuffer = '';
+      
+      // Add buffer for incomplete JSON data
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // Accumulate data in buffer
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim();
-              // Skip empty lines
-              if (!jsonStr) continue;
-              
-              const data = JSON.parse(jsonStr);
-              
-              switch (data.type) {
-                case 'content':
-                  messageBuffer += data.content;
-                  onChunk?.(data.content);
-                  break;
-                case 'complete':
-                  console.log('Code search completed');
-                  break;
-                case 'error':
-                  throw new Error(data.error);
+        // Process complete JSON frames only
+        let split;
+        while ((split = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, split);  // Extract full JSON frame
+          buffer = buffer.slice(split + 2);      // Keep remaining data in buffer
+
+          // Process each line in the complete frame
+          frame.split('\n').forEach(line => {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6).trim();
+                // Skip empty lines
+                if (!jsonStr) return;
+                
+                const data = JSON.parse(jsonStr);
+                
+                switch (data.type) {
+                  case 'content':
+                    messageBuffer += data.content;
+                    onChunk?.(data.content);
+                    break;
+                  case 'complete':
+                    console.log('Code search completed');
+                    break;
+                  case 'error':
+                    throw new Error(data.error);
+                }
+              } catch (e) {
+                console.error('Failed to parse SSE data:', e, 'Line:', line);
+                // Continue processing other lines instead of breaking
               }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e, 'Line:', line);
-              // Continue processing other lines instead of breaking
             }
-          }
+          });
         }
       }
 
