@@ -1,6 +1,7 @@
 import { api, streamRequest, APIError } from '@/lib/api';
 import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
 import { visionService } from './visionService';
+import { sanitizeQuery } from '@/lib/sanitizeQuery';
 
 export class ChatService {
   // Sessions
@@ -128,6 +129,16 @@ export class ChatService {
     const maxRetries = 2;
     const retryDelay = 1000; // Start with 1 second
     
+    // Sanitize the content before sending to backend
+    const cleanContent = sanitizeQuery(content);
+    
+    // Debug logging (remove after testing)
+    if (content !== cleanContent) {
+      console.warn('Message content contained invalid characters and was cleaned');
+      console.log('Original content length:', content.length);
+      console.log('Clean content length:', cleanContent.length);
+    }
+    
     while (retryCount <= maxRetries) {
       try {
         // Enforce mutual exclusivity
@@ -146,7 +157,7 @@ export class ChatService {
           content: string;
           deep_reasoning?: boolean;
           preferred_model?: string;
-        } = { content };
+        } = { content: cleanContent };
         if (useDeepReasoning) body.deep_reasoning = true;
         if (useNuclear) body.preferred_model = 'o3';
         
@@ -380,7 +391,17 @@ export class ChatService {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     
     try {
-      console.log('Searching NEC code:', query);
+      // Sanitize the query before sending to backend
+      const cleanQuery = sanitizeQuery(query);
+      
+      // Debug logging (remove after testing)
+      if (query !== cleanQuery) {
+        console.warn('Query contained invalid characters and was cleaned');
+        console.log('Original query length:', query.length);
+        console.log('Clean query length:', cleanQuery.length);
+      }
+      
+      console.log('Searching NEC code:', cleanQuery);
       
       const response = await streamRequest(
         `/api/chat/sessions/${sessionId}/search-code`,
@@ -389,7 +410,7 @@ export class ChatService {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ query: cleanQuery }),
         }
       );
 
@@ -495,11 +516,21 @@ export class ChatService {
     content: string,
     file: File
   ): Promise<ChatMessage> {
+    // Sanitize the content before sending to backend
+    const cleanContent = sanitizeQuery(content);
+    
+    // Debug logging (remove after testing)
+    if (content !== cleanContent) {
+      console.warn('File message content contained invalid characters and was cleaned');
+      console.log('Original content length:', content.length);
+      console.log('Clean content length:', cleanContent.length);
+    }
+    
     // Upload the file
     const uploadResponse = await visionService.uploadToChat(
       sessionId,
       file,
-      content
+      cleanContent
     );
     
     // Create user message with attachment info
@@ -508,7 +539,7 @@ export class ChatService {
       id: uploadResponse.file_info?.file_id || `temp-${Date.now()}`,
       sessionId: sessionId,
       role: 'user',
-      content: content || 'Please analyze this image',
+      content: cleanContent || 'Please analyze this image',
       timestamp: new Date(),
       attachments: [{
         type: 'image',

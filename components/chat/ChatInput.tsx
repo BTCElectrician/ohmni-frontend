@@ -5,6 +5,7 @@ import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpen
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
+import { sanitizeQuery } from '@/lib/sanitizeQuery';
 
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean, useCodeSearch?: boolean) => void;
@@ -209,7 +210,41 @@ export function ChatInput({
             {/* Input field */}
             <input
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                const rawValue = e.target.value;
+                const cleanValue = sanitizeQuery(rawValue);
+                
+                // Debug logging (remove after testing)
+                if (rawValue !== cleanValue) {
+                  console.warn('Input contained invalid characters and was cleaned');
+                  console.log('Raw value length:', rawValue.length);
+                  console.log('Clean value length:', cleanValue.length);
+                }
+                
+                setMessage(cleanValue);
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                
+                const pastedText = e.clipboardData.getData('text');
+                const cleanText = sanitizeQuery(pastedText);
+                
+                // Insert clean text at cursor position
+                const input = e.target as HTMLInputElement;
+                const start = input.selectionStart ?? 0;
+                const end = input.selectionEnd ?? 0;
+                
+                const newValue = message.substring(0, start) + 
+                               cleanText + 
+                               message.substring(end);
+                
+                setMessage(newValue);
+                
+                // Set cursor position after pasted text
+                setTimeout(() => {
+                  input.setSelectionRange(start + cleanText.length, start + cleanText.length);
+                }, 0);
+              }}
               onKeyDown={handleKeyDown}
               placeholder={
                 selectedFile 
