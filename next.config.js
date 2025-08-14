@@ -15,7 +15,10 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'ohmni-backend.onrender.com',
+        hostname: process.env.NEXT_PUBLIC_BACKEND_URL
+          ?.replace(/^https?:\/\//, '')
+          .replace(/\/$/, '') || 'ohmni-backend.onrender.com',
+        pathname: '/uploads/**',
       },
     ],
   },

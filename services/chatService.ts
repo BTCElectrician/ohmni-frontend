@@ -2,6 +2,7 @@ import { api, streamRequest, APIError } from '@/lib/api';
 import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
 import { visionService } from './visionService';
 import { sanitizeQuery } from '@/lib/sanitizeQuery';
+import { toAttachmentFromFilePath } from '@/lib/files';
 
 export class ChatService {
   // Sessions
@@ -109,8 +110,13 @@ export class ChatService {
       
       console.log('Messages response:', response);
       
-      // Extract messages array from paginated response
-      return response.messages || [];
+      // Map messages to ensure attachments exist if file_path is present
+      return (response.messages || []).map((m) => {
+        if (m.file_path && !m.attachments?.length) {
+          m.attachments = [toAttachmentFromFilePath(m.file_path)];
+        }
+        return m;
+      });
     } catch (error) {
       console.warn('Chat messages endpoint error:', error);
       return [];
@@ -253,6 +259,10 @@ export class ChatService {
                         break;
                       case 'message':
                         lastMessage = data.message;
+                        // Normalize attachments if file_path is present
+                        if (lastMessage && lastMessage.file_path && !lastMessage.attachments?.length) {
+                          lastMessage.attachments = [toAttachmentFromFilePath(lastMessage.file_path)];
+                        }
                         break;
                       case 'error':
                         throw new Error(data.error);
@@ -487,7 +497,7 @@ export class ChatService {
       }
 
       // Return the complete message
-      return {
+      const message: ChatMessage = {
         id: 'temp-' + Date.now(),
         sessionId: sessionId,
         role: 'assistant',
@@ -497,6 +507,13 @@ export class ChatService {
           code_search: true
         }
       };
+      
+      // Apply file_path normalization if present
+      if (message.file_path && !message.attachments?.length) {
+        message.attachments = [toAttachmentFromFilePath(message.file_path)];
+      }
+      
+      return message;
     } catch (error) {
       console.error('Code search error:', error);
       throw error;

@@ -5,6 +5,8 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { CopyButton } from './CopyButton';
 import { Brain, Radiation, ImageIcon, Maximize2, X } from 'lucide-react';
 import { useState } from 'react';
+import React from 'react';
+import { toAttachmentFromFilePath } from '@/lib/files';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -14,6 +16,17 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const { data: session } = useSession();
   const isUser = message.role === 'user';
   const [showFullImage, setShowFullImage] = useState(false);
+
+  // Normalize attachments before rendering
+  const normalizedAttachments = React.useMemo(() => {
+    if (message.attachments && message.attachments.length > 0) {
+      return message.attachments;
+    }
+    if (message.file_path) {
+      return [toAttachmentFromFilePath(message.file_path)];
+    }
+    return [];
+  }, [message.attachments, message.file_path]);
 
   return (
     <div className={`message-wrapper mb-6 ${isUser ? 'flex justify-end' : ''}`}>
@@ -52,9 +65,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
               </div>
 
               {/* Image Attachments */}
-              {message.attachments && message.attachments.length > 0 && (
+              {normalizedAttachments.length > 0 && (
                 <div className="mb-3">
-                  {message.attachments.map((attachment, index) => (
+                  {normalizedAttachments.map((attachment, index) => (
                     <div key={index} className="relative group">
                       {attachment.type === 'image' && attachment.url && (
                         <>
@@ -134,14 +147,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
       </div>
 
       {/* Full Image Modal */}
-      {showFullImage && message.attachments?.[0]?.url && (
+      {showFullImage && normalizedAttachments[0]?.url && (
         <div 
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setShowFullImage(false)}
         >
           <Image
-            src={message.attachments[0].url}
-            alt={message.attachments[0].filename}
+            src={normalizedAttachments[0].url}
+            alt={normalizedAttachments[0].filename}
             width={1920}
             height={1080}
             className="max-w-full max-h-full object-contain"

@@ -66,6 +66,9 @@ export interface ChatMessage {
     nuclear_remaining?: number;
     code_search?: boolean;
   };
+  // Raw backend field(s) we may receive:
+  file_path?: string | null;      // relative path returned by backend
+  file_url?: string | null;       // if backend later returns absolute URLs
   // ADD THIS:
   attachments?: {
     type: 'image' | 'pdf'; // Future-proof with discriminated union
