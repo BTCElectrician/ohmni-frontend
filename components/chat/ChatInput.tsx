@@ -71,6 +71,28 @@ export function ChatInput({
     };
   }, [recordingState]);
 
+  // Add this useEffect for safety timeout when stuck in processing
+  useEffect(() => {
+    let resetTimeout: ReturnType<typeof setTimeout> | null = null
+    
+    if (recordingState === 'processing') {
+      // Safety timeout - if stuck in processing for too long, force reset
+      resetTimeout = setTimeout(() => {
+        console.error('Transcription timeout - force resetting state')
+        setRecordingState('idle')
+        setRecordingMs(0)
+        recordingStartRef.current = null
+        toast.error('Transcription timed out. Please try again.')
+      }, 35000)  // 35 seconds (5 seconds more than fetch timeout)
+    }
+    
+    return () => {
+      if (resetTimeout) {
+        clearTimeout(resetTimeout)
+      }
+    }
+  }, [recordingState])
+
   // Mutual exclusivity handlers
   const toggleDeepThinking = () => {
     const newState = !deepThinking;
@@ -249,9 +271,8 @@ export function ChatInput({
     const elapsed = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
     
     if (elapsed < MIN_RECORDING_MS) {
-      // Cancel without producing useless blob
       try { 
-        await audioService.stopRecording().catch(() => {});
+        await audioService.stopRecording().catch(() => {}) 
       } catch {}
       setRecordingMs(0);
       recordingStartRef.current = null;
@@ -264,7 +285,12 @@ export function ChatInput({
     
     try {
       const blob = await audioService.stopRecording();
+      console.log('Got audio blob, size:', blob.size);
+      
       const { text } = await audioService.sendToTranscription(blob);
+      console.log('Got transcription:', text.substring(0, 50) + '...');
+      
+      // Append to existing message or set new message
       setMessage(prev => prev ? `${prev} ${text}` : text);
       
       // Reset all state
@@ -272,15 +298,27 @@ export function ChatInput({
       setRecordingMs(0);
       recordingStartRef.current = null;
     } catch (e) {
+      console.error('Recording/transcription error:', e);
+      
       const errorMessage = e instanceof Error 
         ? (e.message.includes('Rate limit') 
           ? 'Too many recordings. Please wait a moment.' 
+          : e.message.includes('timeout')
+          ? 'Request timed out. Please try again.'
           : 'Failed to transcribe. Please check your connection.')
         : 'Failed to transcribe. Please check your connection.';
       
       toast.error(errorMessage);
       setRecordingState('error');
-      setTimeout(() => setRecordingState('idle'), 3000);
+      setRecordingMs(0);
+      recordingStartRef.current = null;
+      
+      // Auto-reset from error state after 3 seconds
+      setTimeout(() => {
+        if (recordingState === 'error') {
+          setRecordingState('idle');
+        }
+      }, 3000);
     }
   }
 
