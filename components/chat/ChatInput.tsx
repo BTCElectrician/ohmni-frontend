@@ -5,7 +5,7 @@ import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpen
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
-import { audioService } from '@/services/audioService';
+import audioService from '@/services/audioService';
 import toast from 'react-hot-toast';
 import { sanitizeQuery } from '@/lib/sanitizeQuery';
 
