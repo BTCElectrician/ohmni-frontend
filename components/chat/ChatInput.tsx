@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText, AlertCircle } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText } from 'lucide-react';
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
@@ -12,7 +12,7 @@ import { sanitizeQuery } from '@/lib/sanitizeQuery';
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean, useCodeSearch?: boolean) => void;
   onSendMessageWithFile?: (message: string, file: File) => Promise<void>;
-  onVoiceRecord?: () => void; // @deprecated - Voice recording now handled internally
+
   isStreaming: boolean;
   disabled?: boolean;
   autoSendOnFileSelect?: boolean;
@@ -21,7 +21,6 @@ interface ChatInputProps {
 export function ChatInput({
   onSendMessage,
   onSendMessageWithFile,
-  onVoiceRecord,
   isStreaming,
   disabled = false,
   autoSendOnFileSelect = true,
@@ -36,19 +35,11 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Voice recording state
-  const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'processing' | 'error'>('idle');
-  const [recordingMs, setRecordingMs] = useState(0);
-  const [isMicSupported, setIsMicSupported] = useState<boolean>(true);
-  const recordingStartRef = useRef<number | null>(null);
-  const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const MAX_RECORDING_MS = 5 * 60 * 1000; // 5 minutes
-  const MIN_RECORDING_MS = 500; // 0.5 seconds
+  const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingStartRef = useRef<number>(0);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Feature detection for microphone support
-  useEffect(() => {
-    const supported = typeof window !== 'undefined' && 'MediaRecorder' in window;
-    setIsMicSupported(supported);
-  }, []);
 
   // Cleanup preview URL on unmount
   useEffect(() => {
@@ -62,58 +53,14 @@ export function ChatInput({
   // Cleanup recording on unmount
   useEffect(() => {
     return () => {
-      if (durationTimerRef.current) {
-        clearInterval(durationTimerRef.current);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
       }
       if (recordingState === 'recording') {
         audioService.stopRecording().catch(() => {});
       }
     };
   }, [recordingState]);
-
-  // Add this useEffect for safety timeout when stuck in processing
-  useEffect(() => {
-    let resetTimeout: ReturnType<typeof setTimeout> | null = null
-    
-    if (recordingState === 'processing') {
-      // Safety timeout - if stuck in processing for too long, force reset
-      resetTimeout = setTimeout(() => {
-        console.error('Transcription timeout - force resetting state')
-        setRecordingState('idle')
-        setRecordingMs(0)
-        recordingStartRef.current = null
-        toast.error('Transcription timed out. Please try again.')
-      }, 35000)  // 35 seconds (5 seconds more than fetch timeout)
-    }
-    
-    return () => {
-      if (resetTimeout) {
-        clearTimeout(resetTimeout)
-      }
-    }
-  }, [recordingState])
-
-  // Add this useEffect for safety timeout when stuck in processing
-  useEffect(() => {
-    let resetTimeout: ReturnType<typeof setTimeout> | null = null
-    
-    if (recordingState === 'processing') {
-      // Safety timeout - if stuck in processing for too long, force reset
-      resetTimeout = setTimeout(() => {
-        console.error('Transcription timeout - force resetting state')
-        setRecordingState('idle')
-        setRecordingMs(0)
-        recordingStartRef.current = null
-        toast.error('Transcription timed out. Please try again.')
-      }, 35000)  // 35 seconds (5 seconds more than fetch timeout)
-    }
-    
-    return () => {
-      if (resetTimeout) {
-        clearTimeout(resetTimeout)
-      }
-    }
-  }, [recordingState])
 
   // Mutual exclusivity handlers
   const toggleDeepThinking = () => {
@@ -240,124 +187,133 @@ export function ChatInput({
     }
   };
 
-  // Helper function for formatting duration
-  function formatDuration(ms: number): string {
-    const s = Math.floor(ms / 1000);
-    const mm = String(Math.floor(s / 60)).padStart(2, '0');
-    const ss = String(s % 60).padStart(2, '0');
-    return `${mm}:${ss}`;
-  }
+
 
   // Voice recording handlers
-  async function handleStartRecording() {
-    if (!isMicSupported) {
-      toast.error('Voice recording not supported in this browser.');
-      setRecordingState('error');
-      setTimeout(() => setRecordingState('idle'), 3000);
-      return;
-    }
-
+  const handleStartRecording = async () => {
     try {
+      // Start the actual recording FIRST
       await audioService.startRecording();
-      setRecordingState('recording');
-      recordingStartRef.current = Date.now();
       
-      // Call legacy callback if provided (backward compatibility)
-      onVoiceRecord?.();
-      
-      durationTimerRef.current = setInterval(() => {
-        if (!recordingStartRef.current) return;
-        const elapsed = Date.now() - recordingStartRef.current;
-        setRecordingMs(elapsed);
-        if (elapsed >= MAX_RECORDING_MS) {
-          toast('Maximum recording time reached. Processing...', { icon: '⏱️' });
-          handleStopRecording();
-        }
-      }, 100);
-    } catch (e) {
-      const msg = e instanceof Error && /denied|permission/i.test(e.message)
-        ? 'Microphone access denied. Please enable in browser settings.'
-        : (e instanceof Error ? e.message : 'Unable to start recording');
-      toastFromApiError(new Error(msg));
-      setRecordingState('error');
-      setTimeout(() => setRecordingState('idle'), 3000);
-    }
-  }
-
-  async function handleStopRecording() {
-    if (durationTimerRef.current) {
-      clearInterval(durationTimerRef.current);
-      durationTimerRef.current = null;
-    }
-    
-    const elapsed = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
-    
-    if (elapsed < MIN_RECORDING_MS) {
-      try { 
-        await audioService.stopRecording().catch(() => {}) 
-      } catch {}
-      setRecordingMs(0);
-      recordingStartRef.current = null;
+      // Only update UI if recording actually started
+      if (audioService.isRecording()) {
+        setRecordingState('recording');
+        recordingStartRef.current = Date.now();
+        setRecordingDuration(0);
+        
+        // Start duration timer
+        const timer = setInterval(() => {
+          const duration = audioService.getRecordingDuration();
+          setRecordingDuration(duration);
+          
+          // Auto-stop after 60 seconds
+          if (duration >= 60) {
+            handleStopRecording();
+          }
+        }, 100);
+        
+        recordingIntervalRef.current = timer;
+      } else {
+        throw new Error('Failed to start recording');
+      }
+    } catch (error) {
+      console.error('Failed to start recording:', error);
       setRecordingState('idle');
-      toast.error('Recording too short. Hold for at least half a second.');
-      return;
+      
+      // Show user-friendly error
+      if (error instanceof Error) {
+        if (error.message.includes('Permission')) {
+          toast.error('Microphone permission denied. Please allow microphone access.');
+        } else if (error.message.includes('not supported')) {
+          toast.error('Voice recording is not supported in your browser.');
+        } else {
+          toast.error('Failed to start recording. Please try again.');
+        }
+      }
     }
-    
-    setRecordingState('processing');
-    
+  };
+
+  const handleStopRecording = async () => {
     try {
-      const blob = await audioService.stopRecording();
-      console.log('Got audio blob, size:', blob.size);
+      // Clear the duration timer
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
       
-      const { text } = await audioService.sendToTranscription(blob);
-      console.log('Got transcription:', text.substring(0, 50) + '...');
+      // Update UI to show transcribing
+      setRecordingState('transcribing');
       
-      // Append to existing message or set new message
-      setMessage(prev => prev ? `${prev} ${text}` : text);
+      // Stop recording and get the audio blob
+      const audioBlob = await audioService.stopRecording();
       
-      // Reset all state
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('No audio recorded');
+      }
+      
+      // Get auth token - need to import getSession from next-auth/react
+      const { getSession } = await import('next-auth/react');
+      const session = await getSession();
+      const token = session?.accessToken;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      // Set a timeout for transcription
+      const transcriptionTimeout = setTimeout(() => {
+        console.error('Transcription timeout - force resetting state');
+        setRecordingState('idle');
+        toast.error('Transcription timed out. Please try again.');
+      }, 35000); // 35 second timeout
+      
+      // Send to transcription
+      const transcribedText = await audioService.sendToTranscription(audioBlob, token);
+      
+      // Clear timeout on success
+      clearTimeout(transcriptionTimeout);
+      
+      if (transcribedText) {
+        // Add transcribed text to input
+        setMessage(prevInput => {
+          const newInput = prevInput ? `${prevInput} ${transcribedText}` : transcribedText;
+          return newInput;
+        });
+        
+        toast.success('Voice transcribed successfully');
+      } else {
+        throw new Error('No transcription received');
+      }
+      
+      // Reset state
       setRecordingState('idle');
-      setRecordingMs(0);
-      recordingStartRef.current = null;
-    } catch (e) {
-      console.error('Recording/transcription error:', e);
+      setRecordingDuration(0);
       
-      const errorMessage = e instanceof Error 
-        ? (e.message.includes('Rate limit') 
-          ? 'Too many recordings. Please wait a moment.' 
-          : e.message.includes('timeout')
-          ? 'Request timed out. Please try again.'
-          : 'Failed to transcribe. Please check your connection.')
-        : 'Failed to transcribe. Please check your connection.';
+    } catch (error) {
+      console.error('Recording/transcription error:', error);
+      setRecordingState('idle');
+      setRecordingDuration(0);
       
-      toast.error(errorMessage);
-      setRecordingState('error');
-      setRecordingMs(0);
-      recordingStartRef.current = null;
-      
-      // Auto-reset from error state after 3 seconds
-      setTimeout(() => {
-        if (recordingState === 'error') {
-          setRecordingState('idle');
+      if (error instanceof Error) {
+        if (error.message.includes('No audio')) {
+          toast.error('No audio was recorded. Please try again.');
+        } else if (error.message.includes('Authentication')) {
+          toast.error('Please sign in to use voice recording.');
+        } else {
+          toast.error('Failed to process recording. Please try again.');
         }
-      }, 3000);
+      }
     }
-  }
+  };
 
-  function handleVoiceRecordClick() {
-    switch(recordingState) {
-      case 'idle':
-      case 'error':
-        handleStartRecording();
-        break;
-      case 'recording':
-        handleStopRecording();
-        break;
-      case 'processing':
-        // No-op
-        break;
+  const handleVoiceRecordClick = () => {
+    if (recordingState === 'idle') {
+      handleStartRecording();
+    } else if (recordingState === 'recording') {
+      handleStopRecording();
     }
-  }
+    // Do nothing if transcribing
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 p-6">
@@ -447,37 +403,29 @@ export function ChatInput({
               <div className="flex items-center gap-1">
                 {/* Voice Record */}
                 <button
-                  type="button"
                   onClick={handleVoiceRecordClick}
-                  disabled={disabled || isStreaming || isProcessingFile || recordingState === 'processing' || !isMicSupported}
+                  disabled={recordingState === 'transcribing'}
                   className={`p-2.5 rounded-lg transition-all ${
-                    !isMicSupported
-                      ? 'bg-[#2d3748]/50 text-[#4a5568] cursor-not-allowed'
-                      : recordingState === 'recording'
-                      ? 'bg-red-500/20 text-red-400 ring-2 ring-red-400/30 animate-pulse'
-                      : recordingState === 'processing'
-                      ? 'bg-yellow-500/20 text-yellow-400 cursor-not-allowed'
-                      : recordingState === 'error'
-                      ? 'bg-red-500/10 text-red-400'
-                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                    recordingState === 'idle' && "hover:bg-gray-100 dark:hover:bg-gray-800"
+                  } ${
+                    recordingState === 'recording' && "bg-red-500 text-white animate-pulse"
+                  } ${
+                    recordingState === 'transcribing' && "bg-blue-500 text-white opacity-50"
+                  } ${
+                    recordingState === 'idle' && "bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70"
                   }`}
-                  title={
-                    !isMicSupported
-                      ? 'Voice recording not supported in this browser.'
-                      : recordingState === 'recording'
-                      ? `Stop recording (${formatDuration(MAX_RECORDING_MS - recordingMs)} remaining)`
-                      : recordingState === 'processing'
-                      ? 'Transcribing audio...'
-                      : 'Start voice recording (max 5 minutes)'
+                  type="button"
+                  aria-label={
+                    recordingState === 'idle' ? 'Start recording' : 
+                    recordingState === 'recording' ? 'Stop recording' : 
+                    'Transcribing...'
                   }
                 >
                   <Mic className="w-5 h-5" />
+                  {recordingState === 'recording' && recordingDuration > 0 && (
+                    <span className="ml-2 text-xs">{recordingDuration}s</span>
+                  )}
                 </button>
-                {recordingState === 'recording' && (
-                  <span className="ml-2 text-sm text-red-400 font-mono animate-pulse">
-                    {formatDuration(recordingMs)}
-                  </span>
-                )}
 
                 {/* File Upload */}
                 <input
@@ -487,7 +435,7 @@ export function ChatInput({
                   accept="image/*"
                   capture="environment" // Opens camera on mobile
                   className="hidden"
-                  disabled={disabled || isStreaming || isProcessingFile || recordingState !== 'idle'}
+                  disabled={disabled || isStreaming || isProcessingFile}
                 />
                 <button
                   type="button"
@@ -563,16 +511,10 @@ export function ChatInput({
 
             {/* Status indicators */}
             <div className="absolute -top-8 left-0 right-0 flex items-center gap-4 px-6 pointer-events-none">
-              {recordingState === 'processing' && (
+              {recordingState === 'transcribing' && (
                 <div className="flex items-center gap-2 text-sm text-yellow-500 animate-fadeInUp">
                   <Mic className="w-4 h-4 animate-pulse" />
                   <span>Transcribing audio...</span>
-                </div>
-              )}
-              {recordingState === 'error' && (
-                <div className="flex items-center gap-2 text-sm text-red-500 animate-fadeInUp">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Recording failed. Try again.</span>
                 </div>
               )}
               
