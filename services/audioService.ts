@@ -46,29 +46,85 @@ class AudioService {
 
   async stopRecording(): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder) {
+      const recorder = this.mediaRecorder
+      if (!recorder) {
         reject(new Error('No active recording'))
         return
       }
 
-      this.mediaRecorder.onstop = () => {
+      let hasResolved = false
+      let stopTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+      const cleanup = () => {
+        // Stop all stream tracks (safe to call multiple times)
+        if (this.stream) {
+          this.stream.getTracks().forEach(track => track.stop())
+          this.stream = undefined
+        }
+        // Clear recorder reference after finishing
+        this.mediaRecorder = undefined
+      }
+
+      const finalize = () => {
+        if (hasResolved) return
+        hasResolved = true
+        if (stopTimeoutId) {
+          clearTimeout(stopTimeoutId)
+          stopTimeoutId = null
+        }
         const blob = new Blob(this.chunks, { type: this.mimeType })
         this.lastBlob = blob
-        
-        // Clean up
-        this.mediaRecorder = undefined
+        // Reset chunks for next recording
         this.chunks = []
-        
+        cleanup()
         resolve(blob)
       }
 
-      // Stop all stream tracks
+      // If already inactive (edge cases), resolve immediately
+      if (recorder.state === 'inactive') {
+        finalize()
+        return
+      }
+
+      // Normal stop flow
+      recorder.onstop = () => {
+        finalize()
+      }
+
+      recorder.onerror = (event: Event) => {
+        cleanup()
+        if (!hasResolved) {
+          const maybeAny = event as unknown as { error?: unknown }
+          const err = (maybeAny && maybeAny.error) as Error | undefined
+          reject(err || new Error('MediaRecorder error'))
+        }
+      }
+
+      // Safety: some browsers occasionally fail to emit 'stop'.
+      // Fallback to finalizing after 1500ms to avoid UI hanging.
+      stopTimeoutId = setTimeout(() => {
+        if (!hasResolved) {
+          console.warn('[AudioService] stop timeout hit; finalizing without onstop')
+          finalize()
+        }
+      }, 2500)
+
+      try {
+        // Prefer stopping the recorder first, then tracks
+        recorder.stop()
+      } catch (err) {
+        cleanup()
+        if (!hasResolved) {
+          reject(err as Error)
+        }
+        return
+      }
+
+      // Also stop tracks shortly after calling stop()
       if (this.stream) {
         this.stream.getTracks().forEach(track => track.stop())
         this.stream = undefined
       }
-
-      this.mediaRecorder.stop()
     })
   }
 
