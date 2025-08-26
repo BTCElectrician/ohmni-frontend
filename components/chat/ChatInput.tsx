@@ -93,6 +93,28 @@ export function ChatInput({
     }
   }, [recordingState])
 
+  // Add this useEffect for safety timeout when stuck in processing
+  useEffect(() => {
+    let resetTimeout: ReturnType<typeof setTimeout> | null = null
+    
+    if (recordingState === 'processing') {
+      // Safety timeout - if stuck in processing for too long, force reset
+      resetTimeout = setTimeout(() => {
+        console.error('Transcription timeout - force resetting state')
+        setRecordingState('idle')
+        setRecordingMs(0)
+        recordingStartRef.current = null
+        toast.error('Transcription timed out. Please try again.')
+      }, 35000)  // 35 seconds (5 seconds more than fetch timeout)
+    }
+    
+    return () => {
+      if (resetTimeout) {
+        clearTimeout(resetTimeout)
+      }
+    }
+  }, [recordingState])
+
   // Mutual exclusivity handlers
   const toggleDeepThinking = () => {
     const newState = !deepThinking;
