@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
+import { audioService } from '@/services/audioService';
+import toast from 'react-hot-toast';
 import { sanitizeQuery } from '@/lib/sanitizeQuery';
 
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean, useCodeSearch?: boolean) => void;
   onSendMessageWithFile?: (message: string, file: File) => Promise<void>;
-  onVoiceRecord?: () => void;
+  onVoiceRecord?: () => void; // @deprecated - Voice recording now handled internally
   isStreaming: boolean;
   disabled?: boolean;
   autoSendOnFileSelect?: boolean;
@@ -25,7 +27,6 @@ export function ChatInput({
   autoSendOnFileSelect = true,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const [deepThinking, setDeepThinking] = useState(false);
   const [nuclearThinking, setNuclearThinking] = useState(false);
   const [codeSearchMode, setCodeSearchMode] = useState(false);
@@ -33,6 +34,21 @@ export function ChatInput({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Voice recording state
+  const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'processing' | 'error'>('idle');
+  const [recordingMs, setRecordingMs] = useState(0);
+  const [isMicSupported, setIsMicSupported] = useState<boolean>(true);
+  const recordingStartRef = useRef<number | null>(null);
+  const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const MAX_RECORDING_MS = 5 * 60 * 1000; // 5 minutes
+  const MIN_RECORDING_MS = 500; // 0.5 seconds
+
+  // Feature detection for microphone support
+  useEffect(() => {
+    const supported = typeof window !== 'undefined' && 'MediaRecorder' in window;
+    setIsMicSupported(supported);
+  }, []);
 
   // Cleanup preview URL on unmount
   useEffect(() => {
@@ -42,6 +58,18 @@ export function ChatInput({
       }
     };
   }, [previewUrl]);
+
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current);
+      }
+      if (recordingState === 'recording') {
+        audioService.stopRecording().catch(() => {});
+      }
+    };
+  }, [recordingState]);
 
   // Mutual exclusivity handlers
   const toggleDeepThinking = () => {
@@ -168,12 +196,108 @@ export function ChatInput({
     }
   };
 
-  const handleVoiceRecord = () => {
-    if (onVoiceRecord) {
-      setIsRecording(!isRecording);
-      onVoiceRecord();
+  // Helper function for formatting duration
+  function formatDuration(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
+  // Voice recording handlers
+  async function handleStartRecording() {
+    if (!isMicSupported) {
+      toast.error('Voice recording not supported in this browser.');
+      setRecordingState('error');
+      setTimeout(() => setRecordingState('idle'), 3000);
+      return;
     }
-  };
+
+    try {
+      await audioService.startRecording();
+      setRecordingState('recording');
+      recordingStartRef.current = Date.now();
+      
+      // Call legacy callback if provided (backward compatibility)
+      onVoiceRecord?.();
+      
+      durationTimerRef.current = setInterval(() => {
+        if (!recordingStartRef.current) return;
+        const elapsed = Date.now() - recordingStartRef.current;
+        setRecordingMs(elapsed);
+        if (elapsed >= MAX_RECORDING_MS) {
+          toast('Maximum recording time reached. Processing...', { icon: '⏱️' });
+          handleStopRecording();
+        }
+      }, 100);
+    } catch (e) {
+      const msg = e instanceof Error && /denied|permission/i.test(e.message)
+        ? 'Microphone access denied. Please enable in browser settings.'
+        : (e instanceof Error ? e.message : 'Unable to start recording');
+      toastFromApiError(new Error(msg));
+      setRecordingState('error');
+      setTimeout(() => setRecordingState('idle'), 3000);
+    }
+  }
+
+  async function handleStopRecording() {
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    
+    const elapsed = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
+    
+    if (elapsed < MIN_RECORDING_MS) {
+      // Cancel without producing useless blob
+      try { 
+        await audioService.stopRecording().catch(() => {});
+      } catch {}
+      setRecordingMs(0);
+      recordingStartRef.current = null;
+      setRecordingState('idle');
+      toast.error('Recording too short. Hold for at least half a second.');
+      return;
+    }
+    
+    setRecordingState('processing');
+    
+    try {
+      const blob = await audioService.stopRecording();
+      const { text } = await audioService.sendToTranscription(blob);
+      setMessage(prev => prev ? `${prev} ${text}` : text);
+      
+      // Reset all state
+      setRecordingState('idle');
+      setRecordingMs(0);
+      recordingStartRef.current = null;
+    } catch (e) {
+      const errorMessage = e instanceof Error 
+        ? (e.message.includes('Rate limit') 
+          ? 'Too many recordings. Please wait a moment.' 
+          : 'Failed to transcribe. Please check your connection.')
+        : 'Failed to transcribe. Please check your connection.';
+      
+      toast.error(errorMessage);
+      setRecordingState('error');
+      setTimeout(() => setRecordingState('idle'), 3000);
+    }
+  }
+
+  function handleVoiceRecordClick() {
+    switch(recordingState) {
+      case 'idle':
+      case 'error':
+        handleStartRecording();
+        break;
+      case 'recording':
+        handleStopRecording();
+        break;
+      case 'processing':
+        // No-op
+        break;
+    }
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 p-6">
@@ -264,16 +388,36 @@ export function ChatInput({
                 {/* Voice Record */}
                 <button
                   type="button"
-                  onClick={handleVoiceRecord}
-                  disabled={disabled || isStreaming}
+                  onClick={handleVoiceRecordClick}
+                  disabled={disabled || isStreaming || isProcessingFile || recordingState === 'processing' || !isMicSupported}
                   className={`p-2.5 rounded-lg transition-all ${
-                    isRecording
-                      ? 'bg-red-500/20 text-red-400'
+                    !isMicSupported
+                      ? 'bg-[#2d3748]/50 text-[#4a5568] cursor-not-allowed'
+                      : recordingState === 'recording'
+                      ? 'bg-red-500/20 text-red-400 ring-2 ring-red-400/30 animate-pulse'
+                      : recordingState === 'processing'
+                      ? 'bg-yellow-500/20 text-yellow-400 cursor-not-allowed'
+                      : recordingState === 'error'
+                      ? 'bg-red-500/10 text-red-400'
                       : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  }`}
+                  title={
+                    !isMicSupported
+                      ? 'Voice recording not supported in this browser.'
+                      : recordingState === 'recording'
+                      ? `Stop recording (${formatDuration(MAX_RECORDING_MS - recordingMs)} remaining)`
+                      : recordingState === 'processing'
+                      ? 'Transcribing audio...'
+                      : 'Start voice recording (max 5 minutes)'
+                  }
                 >
                   <Mic className="w-5 h-5" />
                 </button>
+                {recordingState === 'recording' && (
+                  <span className="ml-2 text-sm text-red-400 font-mono animate-pulse">
+                    {formatDuration(recordingMs)}
+                  </span>
+                )}
 
                 {/* File Upload */}
                 <input
@@ -283,7 +427,7 @@ export function ChatInput({
                   accept="image/*"
                   capture="environment" // Opens camera on mobile
                   className="hidden"
-                  disabled={disabled || isStreaming || isProcessingFile}
+                  disabled={disabled || isStreaming || isProcessingFile || recordingState !== 'idle'}
                 />
                 <button
                   type="button"
@@ -359,6 +503,19 @@ export function ChatInput({
 
             {/* Status indicators */}
             <div className="absolute -top-8 left-0 right-0 flex items-center gap-4 px-6 pointer-events-none">
+              {recordingState === 'processing' && (
+                <div className="flex items-center gap-2 text-sm text-yellow-500 animate-fadeInUp">
+                  <Mic className="w-4 h-4 animate-pulse" />
+                  <span>Transcribing audio...</span>
+                </div>
+              )}
+              {recordingState === 'error' && (
+                <div className="flex items-center gap-2 text-sm text-red-500 animate-fadeInUp">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Recording failed. Try again.</span>
+                </div>
+              )}
+              
               {deepThinking && !selectedFile && (
                 <div className="flex items-center gap-2 text-sm text-electric-blue animate-fadeInUp">
                   <Brain className="w-4 h-4 animate-pulse" />
