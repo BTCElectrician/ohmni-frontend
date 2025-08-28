@@ -14,15 +14,11 @@ import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles, Menu, X } from 'lucide-react';
 import Image from 'next/image';
-import { SESSION_UPDATED_EVENT } from '@/lib/events';
+
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/client-resizable';
 import { useMediaQuery } from '@/app/hooks/useMediaQuery';
 
-// Title refresh delays - conservative timing that works for all current and future models
-const TITLE_REFRESH_DELAY = {
-  INITIAL: 5000,  // 5 seconds - works for all models (regular, reasoning, nuclear, future models)
-  RETRY: 8000     // 8 seconds - backup check for any slow models
-};
+
 
 const PROMPT_SUGGESTIONS = [
   { 
@@ -73,7 +69,7 @@ export default function ChatPage() {
     }
     return false; // Default to OFF
   });
-  const [hasFirstMessage, setHasFirstMessage] = useState(false);
+
   
   // Sidebar size persistence
   const [sidebarSize, setSidebarSize] = useState(() => {
@@ -167,11 +163,9 @@ export default function ChatPage() {
 
   useEffect(() => {
     const handleNewChatCreated = () => {
-      console.log('New chat created via sidebar - resetting hasFirstMessage');
+      console.log('New chat created via sidebar');
       setMessages([]);
       setShowPrompts(true);
-      // FIX: Reset hasFirstMessage when new chat is created via sidebar
-      setHasFirstMessage(false);
     };
     window.addEventListener('new-chat-created', handleNewChatCreated);
     return () => {
@@ -216,9 +210,7 @@ export default function ChatPage() {
           throw new Error('Failed to create session - invalid response');
         }
         
-        // FIX: Reset hasFirstMessage for new session
-        console.log('Creating new session - resetting hasFirstMessage to false');
-        setHasFirstMessage(false);
+
         
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
@@ -259,9 +251,7 @@ export default function ChatPage() {
         setIsCreatingNewSession(true);
         const session = await chatService.createSession('New Chat');
         
-        // FIX: Reset hasFirstMessage for new session
-        console.log('Creating new session (file upload) - resetting hasFirstMessage to false');
-        setHasFirstMessage(false);
+
         
         setCurrentSession(session);
         await sendMessageWithFileToSession(session.id, content, file);
@@ -283,9 +273,7 @@ export default function ChatPage() {
     content: string,
     file: File
   ) => {
-    // Track first message properly - check if this is the first message for this session
-    const isFirstMessage = !hasFirstMessage;
-    console.log('sendMessageWithFileToSession - isFirstMessage:', isFirstMessage, 'hasFirstMessage:', hasFirstMessage, 'messages.length:', messages.length);
+
     
     try {
       // 1. Upload file and add user message
@@ -330,25 +318,7 @@ export default function ChatPage() {
           toastSuccess(`Deep reasoning uses remaining today: ${aiResponse.metadata.reasoning_remaining}`);
         }
         
-        // FIX: Refresh sessions to ensure title appears
-        if (isFirstMessage) {
-          console.log('First message detected (vision upload) - setting up title refresh timers');
-          setHasFirstMessage(true);
-          
-          setTimeout(() => {
-            console.log('Refreshing sessions to pick up auto-generated title...');
-            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-            
-            // Dispatch custom event for sidebar
-            window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
-          }, TITLE_REFRESH_DELAY.INITIAL);
-          
-          // Add a second check for any slow models
-          setTimeout(() => {
-            console.log('Second refresh for vision upload title...');
-            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-          }, TITLE_REFRESH_DELAY.RETRY);
-        }
+
         
       } catch (error) {
         console.error('Vision analysis failed:', error);
@@ -372,9 +342,7 @@ export default function ChatPage() {
     useNuclear: boolean = false,
     useCodeSearch: boolean = false
   ) => {
-    // Track first message properly - check if this is the first message for this session
-    const isFirstMessage = !hasFirstMessage;
-    console.log('sendMessageWithSession - isFirstMessage:', isFirstMessage, 'hasFirstMessage:', hasFirstMessage, 'messages.length:', messages.length);
+
     
     // Add user message immediately for better UX
     const userMessage: ChatMessageType = {
@@ -465,30 +433,7 @@ export default function ChatPage() {
         loadMessages();
       }
       
-      // First message session refresh - extended timeout for reasoning models
-      if (isFirstMessage) {
-        console.log('First message detected - setting up title refresh timers');
-        setHasFirstMessage(true);
-        
-        // Use conservative timeout that works for all models
-        const refreshDelay = TITLE_REFRESH_DELAY.INITIAL;
-        
-        setTimeout(() => {
-          console.log('Refreshing sessions to pick up auto-generated title...');
-          queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-          
-          // Dispatch custom event for sidebar
-          window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
-        }, refreshDelay);
-        
-        // Add a second check for reasoning models
-        if (useDeepReasoning || useNuclear) {
-          setTimeout(() => {
-            console.log('Second refresh for reasoning model title...');
-            queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-          }, TITLE_REFRESH_DELAY.RETRY);
-        }
-      }
+
     } catch (error) {
       console.error('Failed to send message:', error);
       

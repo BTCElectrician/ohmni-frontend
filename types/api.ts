@@ -169,7 +169,13 @@ export type SSEEventType =
     }
   | { type: 'vision_start'; message: string }
   | { type: 'vision_result'; content: string }
-  | { type: 'complete'; message?: string };
+  | { 
+      type: 'complete'; 
+      message?: string;
+      session_title?: string;    // NEW
+      session_id?: string;       // NEW
+      message_count?: number;    // NEW
+    };
 
 // Add a specific type for config events to avoid type issues
 export interface ConfigEvent {

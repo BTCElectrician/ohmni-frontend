@@ -3,6 +3,57 @@ import { ChatSession, ChatMessage, SSEEventType } from '@/types/api';
 import { visionService } from './visionService';
 import { sanitizeQuery } from '@/lib/sanitizeQuery';
 import { toAttachmentFromFilePath } from '@/lib/files';
+import { useChatStore } from '@/store/chatStore';
+import { SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
+
+function applyTitleFromComplete(data: { 
+  session_title?: string; 
+  session_id?: string; 
+  message_count?: number 
+}) {
+  if (!data?.session_title || !data?.session_id) return;
+
+  const store = useChatStore.getState();
+  const current = store.currentSession;
+  if (!current || current.id !== data.session_id) return;
+
+  if (data.session_title !== current.name) {
+    // 1) Update Zustand store session in-place
+    store.setCurrentSession({
+      ...current,
+      name: data.session_title,
+      message_count: data.message_count ?? current.message_count,
+    });
+
+    // 2) Notify same-tab listeners (e.g., sidebar) without a network call
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(SESSION_TITLE_UPDATED_EVENT, {
+          detail: {
+            sessionId: current.id,
+            title: data.session_title,
+            message_count: data.message_count,
+          },
+        })
+      );
+
+      // 3) Cross-tab propagation via localStorage
+      try {
+        localStorage.setItem(
+          SESSION_TITLE_STORAGE_KEY,
+          JSON.stringify({
+            sessionId: current.id,
+            title: data.session_title,
+            message_count: data.message_count,
+            ts: Date.now(),
+          })
+        );
+      } catch {
+        // Storage unavailable or quota exceeded — safe to ignore
+      }
+    }
+  }
+}
 
 export class ChatService {
   // Sessions
@@ -282,9 +333,7 @@ export class ChatService {
                         }
                         break;
                       case 'complete':
-                        // Stream is finished, clean up any loading states
-                        // Maybe close the stream or update UI
-                        console.log('Stream completed');
+                        applyTitleFromComplete(data);
                         break;
                     }
                   } catch (e) {
@@ -482,7 +531,7 @@ export class ChatService {
                     onChunk?.(data.content);
                     break;
                   case 'complete':
-                    console.log('Code search completed');
+                    applyTitleFromComplete(data);
                     break;
                   case 'error':
                     throw new Error(data.error);

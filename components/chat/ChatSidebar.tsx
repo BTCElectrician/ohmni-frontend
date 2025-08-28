@@ -8,7 +8,7 @@ import { ChatSession } from '@/types/api';
 import { useChatSessions } from '@/app/hooks/useChatSessions';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import { useQueryClient } from '@tanstack/react-query';
-import { SESSION_UPDATED_EVENT } from '@/lib/events';
+import { SESSION_UPDATED_EVENT, SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
 import toast from 'react-hot-toast';
 
 // Editable Session Name Component
@@ -106,6 +106,59 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     return () => {
       window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
     };
+  }, [queryClient]);
+
+  // Listen for same-tab session title updates
+  useEffect(() => {
+    const onTitle = (e: Event) => {
+      const detail = (e as CustomEvent<{ 
+        sessionId: string; 
+        title: string; 
+        message_count?: number 
+      }>).detail;
+      
+      if (!detail?.sessionId || !detail.title) return;
+
+      queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
+        Array.isArray(old)
+          ? old.map((s) =>
+              s.id === detail.sessionId
+                ? { ...s, name: detail.title, message_count: detail.message_count ?? s.message_count }
+                : s
+            )
+          : old
+      );
+    };
+
+    window.addEventListener(SESSION_TITLE_UPDATED_EVENT, onTitle);
+    return () => window.removeEventListener(SESSION_TITLE_UPDATED_EVENT, onTitle);
+  }, [queryClient]);
+
+  // Listen for cross-tab session title updates
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== SESSION_TITLE_STORAGE_KEY || !e.newValue) return;
+      
+      try {
+        const { sessionId, title, message_count } = JSON.parse(e.newValue);
+        if (!sessionId || !title) return;
+
+        queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
+          Array.isArray(old)
+            ? old.map((s) =>
+                s.id === sessionId
+                  ? { ...s, name: title, message_count: message_count ?? s.message_count }
+                  : s
+              )
+            : old
+        );
+      } catch {
+        // Ignore parse error
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [queryClient]);
 
   const createNewChat = async () => {
