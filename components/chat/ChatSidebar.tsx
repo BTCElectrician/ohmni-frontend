@@ -161,6 +161,29 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     return () => window.removeEventListener('storage', onStorage);
   }, [queryClient]);
 
+  // ADD this entire useEffect block
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_TITLE_STORAGE_KEY);
+      if (!raw) return;
+      const { sessionId, title, message_count, timestamp } = JSON.parse(raw);
+      // Optional TTL: only apply if recent (<= 30s)
+      if (sessionId && title && (!timestamp || Date.now() - timestamp < 30000)) {
+        queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
+          Array.isArray(old)
+            ? old.map((s) =>
+                s.id === sessionId
+                  ? { ...s, name: title, message_count: message_count ?? s.message_count }
+                  : s
+              )
+            : old
+        );
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, [queryClient]);
+
   const createNewChat = async () => {
     try {
       const { chatService } = await import('@/services/chatService');

@@ -18,6 +18,9 @@ import Image from 'next/image';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/client-resizable';
 import { useMediaQuery } from '@/app/hooks/useMediaQuery';
 
+// ADD these imports after existing imports
+import { SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
+
 
 
 const PROMPT_SUGGESTIONS = [
@@ -115,6 +118,52 @@ export default function ChatPage() {
       router.push('/login');
     }
   }, [status, router]);
+
+  // ADD this entire useEffect block after the authentication check useEffect
+  useEffect(() => {
+    const onTitle = (e: Event) => {
+      const detail = (e as CustomEvent<{ sessionId: string; title: string; message_count?: number }>).detail;
+      if (!detail?.sessionId || !detail.title) return;
+
+      queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
+        Array.isArray(old)
+          ? old.map((s) =>
+              s.id === detail.sessionId
+                ? { ...s, name: detail.title, message_count: detail.message_count ?? s.message_count }
+                : s
+            )
+          : old
+      );
+    };
+
+    window.addEventListener(SESSION_TITLE_UPDATED_EVENT, onTitle);
+
+    // Rehydrate any title update that might have fired before listeners mounted
+    try {
+      const raw = localStorage.getItem(SESSION_TITLE_STORAGE_KEY);
+      if (raw) {
+        const { sessionId, title, message_count, timestamp } = JSON.parse(raw);
+        // Apply if recent (last 30s) to avoid stale overrides on reloads
+        if (sessionId && title && (!timestamp || Date.now() - timestamp < 30000)) {
+          queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
+            Array.isArray(old)
+              ? old.map((s) =>
+                  s.id === sessionId
+                    ? { ...s, name: title, message_count: message_count ?? s.message_count }
+                    : s
+                )
+              : old
+          );
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    return () => {
+      window.removeEventListener(SESSION_TITLE_UPDATED_EVENT, onTitle);
+    };
+  }, [queryClient]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -214,6 +263,10 @@ export default function ChatPage() {
         
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
+
+        // ADD THIS LINE - Microtask wait to let effects/listeners flush
+        await new Promise((res) => setTimeout(res, 0));
+
         // Now send the message with the new session
         await sendMessageWithSession(session.id, content, useDeepReasoning, useNuclear, useCodeSearch);
         setIsCreatingNewSession(false); // Clear flag after message is sent
@@ -254,6 +307,10 @@ export default function ChatPage() {
 
         
         setCurrentSession(session);
+
+        // ADD THIS LINE - Microtask wait here too
+        await new Promise((res) => setTimeout(res, 0));
+
         await sendMessageWithFileToSession(session.id, content, file);
         setIsCreatingNewSession(false);
         // FIX: Invalidate sessions to refresh sidebar
