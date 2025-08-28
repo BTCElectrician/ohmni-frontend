@@ -142,9 +142,12 @@ export default function ChatPage() {
     try {
       const raw = localStorage.getItem(SESSION_TITLE_STORAGE_KEY);
       if (raw) {
-        const { sessionId, title, message_count, timestamp } = JSON.parse(raw);
-        // Apply if recent (last 30s) to avoid stale overrides on reloads
-        if (sessionId && title && (!timestamp || Date.now() - timestamp < 30000)) {
+              const parsed = JSON.parse(raw);
+      const { sessionId, title, message_count } = parsed;
+      const ts = parsed.ts ?? parsed.timestamp; // FIX: accept both field names
+
+      // Apply if recent (last 30s) to avoid stale overrides on reloads
+      if (sessionId && title && (!ts || Date.now() - ts < 30000)) {
           queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
             Array.isArray(old)
               ? old.map((s) =>

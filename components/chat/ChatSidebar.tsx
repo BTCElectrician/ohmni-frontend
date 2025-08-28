@@ -140,8 +140,13 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
       if (e.key !== SESSION_TITLE_STORAGE_KEY || !e.newValue) return;
       
       try {
-        const { sessionId, title, message_count } = JSON.parse(e.newValue);
+        const parsed = JSON.parse(e.newValue);
+        const { sessionId, title, message_count } = parsed;
+        const ts = parsed.ts ?? parsed.timestamp; // FIX: accept both field names
         if (!sessionId || !title) return;
+
+        // Optional TTL filter (keeps behavior consistent with rehydration)
+        if (ts && Date.now() - ts > 30000) return;
 
         queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
           Array.isArray(old)
@@ -166,9 +171,12 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     try {
       const raw = localStorage.getItem(SESSION_TITLE_STORAGE_KEY);
       if (!raw) return;
-      const { sessionId, title, message_count, timestamp } = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      const { sessionId, title, message_count } = parsed;
+      const ts = parsed.ts ?? parsed.timestamp; // FIX: accept both field names
+
       // Optional TTL: only apply if recent (<= 30s)
-      if (sessionId && title && (!timestamp || Date.now() - timestamp < 30000)) {
+      if (sessionId && title && (!ts || Date.now() - ts < 30000)) {
         queryClient.setQueryData<ChatSession[]>(['chat-sessions'], (old) =>
           Array.isArray(old)
             ? old.map((s) =>
