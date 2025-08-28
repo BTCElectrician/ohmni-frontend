@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Folder, Trash2, PencilIcon, Home, MessageSquareText } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
-import { chatService } from '@/services/chatService';
+
 import { ChatSession } from '@/types/api';
 import { useChatSessions } from '@/app/hooks/useChatSessions';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
@@ -84,59 +84,20 @@ function EditableSessionName({
 }
 
 export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?: (session: ChatSession) => void }) {
-  const { sessions, currentSession, setSessions, setCurrentSession } = useChatStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { currentSession, setCurrentSession } = useChatStore();
   const queryClient = useQueryClient();
   
-  // PHASE 1: React Query enhancement (optional)
-  // If this fails, we'll fall back to the existing manual loading
+  // React Query handles all fetching
   const { 
-    data: queriedSessions, 
-    isLoading: isQueryLoading, 
-    error: queryError,
-    isSuccess: isQuerySuccess 
+    data: sessions = [], 
+    isLoading, 
+    error 
   } = useChatSessions();
-
-  const loadSessions = useCallback(async () => {
-    // PHASE 1: Prefer React Query data if available
-    if (isQuerySuccess && queriedSessions) {
-      console.log('Using React Query sessions:', queriedSessions);
-      setSessions(queriedSessions);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-    
-    // PHASE 1: If React Query failed, fall back to manual loading
-    if (queryError) {
-      console.log('React Query failed, falling back to manual loading:', queryError);
-    }
-    
-    try {
-      setError(null);
-      const data = await chatService.getSessions();
-      console.log('Loaded sessions (manual fallback):', data);
-      setSessions(data);
-    } catch (error) {
-      console.error('Failed to load sessions:', error);
-      setError('Unable to load chat history due to backend issue');
-      toastFromApiError(error);
-      // Set empty sessions so UI still works
-      setSessions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [setSessions, isQuerySuccess, queriedSessions, queryError]);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
 
   // Listen for session updates from other components
   useEffect(() => {
     const handleSessionUpdate = () => {
-      loadSessions();
+      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
     };
     
     // Subscribe to custom event
@@ -145,19 +106,19 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     return () => {
       window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
     };
-  }, [loadSessions]);
+  }, [queryClient]);
 
   const createNewChat = async () => {
     try {
-      setError(null);
+      const { chatService } = await import('@/services/chatService');
       const session = await chatService.createSession('New Chat');
-      setSessions([session, ...sessions]);
       setCurrentSession(session);
+      // Invalidate React Query to refetch sessions
+      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
       // FIX: Clear messages and show prompts in main chat page
       window.dispatchEvent(new Event('new-chat-created'));
     } catch (error) {
       console.error('Failed to create session:', error);
-      setError('Unable to create new chat due to backend issue');
       toastFromApiError(error);
     }
   };
@@ -176,15 +137,17 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
     if (!confirm('Delete this chat session?')) return;
 
     try {
+      const { chatService } = await import('@/services/chatService');
       await chatService.deleteSession(id);
-      setSessions(sessions.filter(s => s.id !== id));
       
       if (currentSession?.id === id) {
         setCurrentSession(null);
       }
+      
+      // Invalidate React Query to refetch sessions
+      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
     } catch (error) {
       console.error('Failed to delete session:', error);
-      setError('Unable to delete chat due to backend issue');
       toastFromApiError(error);
     }
   };
@@ -192,15 +155,14 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
   // Session rename handler
   const handleRenameSession = async (sessionId: string, newName: string) => {
     try {
+      const { chatService } = await import('@/services/chatService');
       await chatService.updateSession(sessionId, { name: newName });
-      // Update local state immediately for better UX
-      setSessions(sessions.map(s => 
-        s.id === sessionId ? { ...s, name: newName } : s
-      ));
+      
       // Also update current session if it's the one being renamed
       if (currentSession?.id === sessionId) {
         setCurrentSession({ ...currentSession, name: newName });
       }
+      
       // React Query will automatically refetch and update the UI
       queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
     } catch (error) {
@@ -234,7 +196,7 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
         {/* Error Banner */}
         {error && (
           <div className="mx-3 mb-3 p-2 bg-red-500/20 border border-red-400/30 rounded-lg text-red-300 text-xs">
-            {error}
+            Failed to load sessions
           </div>
         )}
         
@@ -284,13 +246,13 @@ export function ChatSidebar({ selectSession: onSelectSession }: { selectSession?
           Chats
         </div>
         <div className="flex-1 overflow-y-auto px-2 min-h-0 custom-scrollbar">
-          {(isLoading || isQueryLoading) ? (
+          {isLoading ? (
             <div className="text-sm text-text-secondary/70 text-center py-3">
               Loading...
             </div>
           ) : error ? (
             <div className="text-sm text-red-400 text-center py-3">
-              Backend issue preventing<br />chat history from loading
+              Failed to load sessions
             </div>
           ) : sessions.length > 0 ? (
             <div className="pb-6">

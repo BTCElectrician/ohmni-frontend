@@ -2,16 +2,17 @@ import { create } from 'zustand';
 import { ChatSession, ChatMessage, QueuedChatAction } from '@/types/api';
 
 interface ChatStore {
-  sessions: ChatSession[];
+  // UI State only
   currentSession: ChatSession | null;
   messages: ChatMessage[];
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
+  
+  // Offline queue (keep for offline support)
   offlineQueue: QueuedChatAction[];
   
   // Actions
-  setSessions: (sessions: ChatSession[]) => void;
   setCurrentSession: (session: ChatSession | null) => void;
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
@@ -25,7 +26,6 @@ interface ChatStore {
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
-  sessions: [],
   currentSession: null,
   messages: [],
   isLoading: false,
@@ -33,7 +33,6 @@ export const useChatStore = create<ChatStore>((set) => ({
   error: null,
   offlineQueue: [],
   
-  setSessions: (sessions) => set({ sessions }),
   setCurrentSession: (session) => set({ currentSession: session }),
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => ({ 
@@ -52,7 +51,6 @@ export const useChatStore = create<ChatStore>((set) => ({
   })),
   clearQueue: () => set({ offlineQueue: [] }),
   reset: () => set({
-    sessions: [],
     currentSession: null,
     messages: [],
     isLoading: false,
