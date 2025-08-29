@@ -19,7 +19,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { useMediaQuery } from '@/app/hooks/useMediaQuery';
 
 // ADD these imports after existing imports
-import { SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
+import { SESSION_UPDATED_EVENT, SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
 
 
 
@@ -266,6 +266,13 @@ export default function ChatPage() {
         
         // Set the session in the store so it can be used immediately
         setCurrentSession(session);
+        
+        // Notify sidebar that a new session was created
+        if (typeof window !== 'undefined') {
+          // Small delay to ensure state updates have propagated
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
+        }
 
         // ADD THIS LINE - Microtask wait to let effects/listeners flush
         await new Promise((res) => setTimeout(res, 0));
@@ -310,6 +317,12 @@ export default function ChatPage() {
 
         
         setCurrentSession(session);
+        
+        // Notify sidebar that a new session was created
+        if (typeof window !== 'undefined') {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
+        }
 
         // ADD THIS LINE - Microtask wait here too
         await new Promise((res) => setTimeout(res, 0));
