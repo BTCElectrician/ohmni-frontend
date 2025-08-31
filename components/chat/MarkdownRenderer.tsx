@@ -93,6 +93,9 @@ const formatTableRowAsBulletPoint = (cells: string[]): ReactNode => {
 };
 
 export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererProps) {
+  // ✅ FIX: Ensure ReactMarkdown always receives a string
+  const safeContent = typeof content === 'string' ? content : '';
+  
   return (
     <div className={`prose max-w-none ${
       isUser 
@@ -106,7 +109,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           // Enhanced table rendering with material list/checklist detection
           table: ({ node, children, ...props }) => {
             // Check if this is a material list or checklist based on surrounding content
-            const isMaterialTable = isMaterialListOrChecklist(content);
+            const isMaterialTable = isMaterialListOrChecklist(safeContent);
             
             if (isMaterialTable) {
               // For material lists, we'll use a custom bullet-point format
@@ -182,7 +185,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           
           // Custom thead for material lists
           thead: ({ node, children, ...props }) => {
-            const isMaterialTable = isMaterialListOrChecklist(content);
+            const isMaterialTable = isMaterialListOrChecklist(safeContent);
             
             if (isMaterialTable) {
               // Hide the table header for material lists
@@ -198,7 +201,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           
           // Custom tbody for material lists
           tbody: ({ node, children, ...props }) => {
-            const isMaterialTable = isMaterialListOrChecklist(content);
+            const isMaterialTable = isMaterialListOrChecklist(safeContent);
             
             if (isMaterialTable) {
               // For material lists, we need to process the children differently
@@ -211,7 +214,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           
           // Custom tr for material lists
           tr: ({ node, children, ...props }) => {
-            const isMaterialTable = isMaterialListOrChecklist(content);
+            const isMaterialTable = isMaterialListOrChecklist(safeContent);
             
             if (isMaterialTable) {
               // For material lists, convert to bullet points outside the table structure
@@ -229,7 +232,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           
           // Custom td for material lists
           td: ({ node, children, ...props }) => {
-            const isMaterialTable = isMaterialListOrChecklist(content);
+            const isMaterialTable = isMaterialListOrChecklist(safeContent);
             
             if (isMaterialTable) {
               // For material lists, collect cell content and format as bullet points
@@ -340,7 +343,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           },
         }}
       >
-        {content}
+        {safeContent}
       </ReactMarkdown>
     </div>
   );

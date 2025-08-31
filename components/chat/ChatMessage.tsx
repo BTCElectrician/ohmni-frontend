@@ -104,7 +104,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
               {/* Markdown Content */}
               <div className="chat-markdown-content">
-                <MarkdownRenderer content={message.content} isUser={isUser} />
+                <MarkdownRenderer content={message.content ?? ''} isUser={isUser} />
               </div>
               
               {/* Mode indicators - only show for AI messages */}
@@ -139,7 +139,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {!isUser && (
           <div className="sticky bottom-4 float-right mr-2 mt-4 z-10">
             <CopyButton 
-              text={message.content} 
+              text={message.content ?? ''} 
               className="shadow-lg bg-surface-elevated/95 backdrop-blur-sm border-2 border-border-subtle hover:border-electric-blue/50 min-w-[100px]"
             />
           </div>

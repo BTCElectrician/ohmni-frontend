@@ -163,10 +163,18 @@ export class ChatService {
       
       // Map messages to ensure attachments exist if file_path is present
       return (response.messages || []).map((m) => {
-        if (m.file_path && !m.attachments?.length) {
-          m.attachments = [toAttachmentFromFilePath(m.file_path)];
+        // ✅ Coerce content to a string to protect UI
+        const messageWithContent = m as ChatMessage & { content?: unknown };
+        const normalized = {
+          ...m,
+          content: typeof messageWithContent.content === 'string' ? messageWithContent.content : '',
+        } as ChatMessage;
+        
+        if (normalized.file_path && !normalized.attachments?.length) {
+          normalized.attachments = [toAttachmentFromFilePath(normalized.file_path)];
         }
-        return m;
+        
+        return normalized;
       });
     } catch (error) {
       console.warn('Chat messages endpoint error:', error);
@@ -447,7 +455,15 @@ export class ChatService {
     query: string,
     onChunk?: (text: string) => void
   ): Promise<ChatMessage> {
+    // Add debug flag for development
+    const DEBUG_SSE = process.env.NODE_ENV === 'development';
+    
+    if (DEBUG_SSE) {
+      console.log('🔍 Code search started:', query);
+    }
+    
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let errorOccurred = false;
     
     try {
       // Sanitize the query before sending to backend
@@ -491,6 +507,79 @@ export class ChatService {
         throw new APIError(response.status, errorMessage);
       }
 
+      // Fallback: If the backend returned JSON/plain text instead of an SSE stream,
+      // parse the body directly and extract useful content.
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const fallbackText = await response.text();
+        let messageBuffer = '';
+
+        const appendChunk = (text: string) => {
+          messageBuffer += text;
+          onChunk?.(text);
+        };
+
+        try {
+          const parsed = JSON.parse(fallbackText);
+
+          if (typeof parsed === 'string') {
+            appendChunk(parsed);
+          } else if (parsed && typeof parsed === 'object') {
+            const obj = parsed as Record<string, unknown>;
+
+            // Prefer direct fields if present
+            const directFields = ['content', 'answer'];
+            for (const field of directFields) {
+              const value = obj[field];
+              if (typeof value === 'string' && value.trim()) {
+                appendChunk(value);
+              }
+            }
+
+            // Handle results array from Azure Function
+            if (Array.isArray(obj.results)) {
+              const candidateKeys = ['content', 'text', 'snippet', 'chunk', 'page_content', 'body'];
+              for (const item of obj.results as Array<Record<string, unknown>>) {
+                for (const key of candidateKeys) {
+                  const v = item[key];
+                  if (typeof v === 'string' && v.trim()) {
+                    appendChunk(v + '\n');
+                    break;
+                  }
+                }
+              }
+            }
+
+            // If nothing extracted, stringify the object so the user sees something useful
+            if (!messageBuffer) {
+              appendChunk(JSON.stringify(obj));
+            }
+          } else {
+            appendChunk(String(parsed));
+          }
+        } catch {
+          // Not JSON - treat as raw text
+          if (fallbackText.trim()) {
+            appendChunk(fallbackText);
+          }
+        }
+
+        if (!messageBuffer) {
+          console.error('❌ No content received from code search fallback');
+          throw new Error('No results received from code search. Please try again.');
+        }
+
+        // Return the aggregated message
+        return {
+          id: 'temp-' + Date.now(),
+          sessionId: sessionId,
+          role: 'assistant',
+          content: messageBuffer,
+          timestamp: new Date(),
+          metadata: { code_search: true }
+        } as ChatMessage;
+      }
+
       reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');
@@ -515,34 +604,90 @@ export class ChatService {
           const frame = buffer.slice(0, split);  // Extract full JSON frame
           buffer = buffer.slice(split + 2);      // Keep remaining data in buffer
 
-          // Process each line in the complete frame
+          // Process each line in the complete frame with flexible parser
           frame.split('\n').forEach(line => {
             if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) return;
+              
               try {
-                const jsonStr = line.slice(6).trim();
-                // Skip empty lines
-                if (!jsonStr) return;
-                
+                // Attempt to parse as JSON
                 const data = JSON.parse(jsonStr);
                 
-                switch (data.type) {
-                  case 'content':
+                // Check if it's a properly formatted event with type
+                if (data.type) {
+                  switch (data.type) {
+                    case 'content':
+                      if (data.content) {
+                        messageBuffer += data.content;
+                        onChunk?.(data.content);
+                      }
+                      break;
+                      
+                    case 'complete':
+                      applyTitleFromComplete(data);
+                      break;
+                      
+                    case 'error':
+                      console.error('Search error:', data.error);
+                      errorOccurred = true;
+                      throw new Error(data.error || 'Search error occurred');
+                      
+                    default:
+                      console.warn('Unknown event type:', data.type);
+                      // If unknown type has content, use it
+                      if (data.content) {
+                        messageBuffer += data.content;
+                        onChunk?.(data.content);
+                      }
+                  }
+                } 
+                // Handle JSON without type field
+                else if (typeof data === 'object' && data !== null) {
+                  // Check for direct content field
+                  if (data.content) {
                     messageBuffer += data.content;
                     onChunk?.(data.content);
-                    break;
-                  case 'complete':
-                    applyTitleFromComplete(data);
-                    break;
-                  case 'error':
-                    throw new Error(data.error);
+                  }
+                  // Check for results array (from Azure Function)
+                  else if (data.results && Array.isArray(data.results)) {
+                    data.results.forEach((result: { content?: string }) => {
+                      if (result.content) {
+                        messageBuffer += result.content + '\n';
+                        onChunk?.(result.content + '\n');
+                      }
+                    });
+                  }
+                  // Unknown object structure - stringify it
+                  else {
+                    const content = JSON.stringify(data);
+                    messageBuffer += content;
+                    onChunk?.(content);
+                  }
                 }
-              } catch (e) {
-                console.error('Failed to parse SSE data:', e, 'Line:', line);
-                // Continue processing other lines instead of breaking
+                // Handle primitive JSON values (strings, numbers)
+                else {
+                  messageBuffer += String(data);
+                  onChunk?.(String(data));
+                }
+                
+              } catch {
+                // Not JSON - treat as raw text content
+                if (DEBUG_SSE) {
+                  console.log('Processing raw text SSE:', jsonStr.substring(0, 100));
+                }
+                messageBuffer += jsonStr;
+                onChunk?.(jsonStr);
               }
             }
           });
         }
+      }
+
+      // Check if we received any content
+      if (!messageBuffer && !errorOccurred) {
+        console.error('❌ No content received from code search stream');
+        throw new Error('No results received from code search. Please try again.');
       }
 
       // Return the complete message
