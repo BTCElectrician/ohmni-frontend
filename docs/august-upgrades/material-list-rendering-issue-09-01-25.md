@@ -1,3 +1,43 @@
+PRD: Restore Markdown Table Rendering (Remove Custom Table Overrides)
+
+Summary
+Markdown tables are not rendering in chat messages due to custom table overrides in MarkdownRenderer.tsx that sometimes return null for table structure (thead/tbody/tr). We will remove these overrides and let ReactMarkdown render tables with default behavior, while keeping simple th/td styling and other enhancements (code, links, lists, images).
+
+Problem Statement
+- Users paste valid markdown tables, but the UI displays nothing.
+- Root cause: MarkdownRenderer.tsx overrides for table/thead/tbody/tr rely on “material list” detection and can return null, effectively suppressing table rendering.
+
+Goals
+- Tables render reliably across the whole chat app via default ReactMarkdown behavior.
+- Preserve existing styling for table cells and other markdown enhancements (code blocks, links, lists, images).
+- Avoid regression in other chat features (streaming updates, SSE, attachments).
+
+Non-Goals
+- No special conversion of tables to “material list” bullet formats.
+- No changes to chat rendering logic outside of MarkdownRenderer.tsx.
+
+Scope
+- A single-file change to components/chat/MarkdownRenderer.tsx:
+  - Remove the custom table, thead, tbody, and tr renderers.
+  - Keep cell styling via th and td.
+  - Keep existing code/links/lists/image overrides.
+  - Remove unused material-list helpers.
+
+Technical Approach
+- Delete all custom table-structure overrides.
+- Retain th/td with Tailwind styling.
+- Keep remark-gfm and rehype-highlight intact for tables and code highlighting.
+- Ensure the component continues to accept and render content as string safely.
+
+Implementation Details
+
+Files to change
+- components/chat/MarkdownRenderer.tsx
+
+Edits
+- Replace the current file content with the following simplified, safe version:
+
+```tsx
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -23,15 +63,6 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          // Standard table rendering with overflow handling
-          table: ({ node, children, ...props }) => (
-            <div className="overflow-x-auto my-4 rounded-lg border border-border-subtle">
-              <table className="min-w-full table-auto" {...props}>
-                {children}
-              </table>
-            </div>
-          ),
-
           // Keep simple header/cell styling
           th: ({ node, ...props }) => (
             <th
@@ -136,4 +167,54 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
       </ReactMarkdown>
     </div>
   );
-} 
+}
+```
+
+Notes
+- The previous “material-list/checklist” helpers and table overrides are intentionally removed. This restores reliable table rendering.
+- Tailwind prose table styling already exists in app/globals.css and remains effective.
+
+Acceptance Criteria
+- Given a message containing a Markdown table, when rendered in the chat, then the table is visible with headers and rows, scrollable if necessary, and not blank.
+- Non-table markdown (lists, headers, code blocks) continues to render correctly.
+- No console errors from MarkdownRenderer in dev tools.
+- No regression in ChatMessage, streaming updates, or attachments.
+
+Test Plan
+- Manual:
+  1) Send assistant output with a simple markdown table:
+     | Qty | Item | Notes |
+     | --- | ---- | ----- |
+     | 2   | 1" PVC Conduit | Outdoor |
+     | 150 | 12 AWG CU | THHN |
+     Confirm visible in chat.
+  2) Paste a larger table; ensure it renders and is horizontally scrollable if overflow occurs.
+  3) Verify code blocks, lists, links, images still render properly.
+  4) Verify normal chat streaming responses still update live.
+- Regression:
+  - Verify chat with and without attachments.
+  - Verify deep/nuclear indicators still render (unrelated to markdown).
+
+Performance and Risk
+- Performance impact: negligible or improved (less custom logic to run).
+- Risk: Low. We’re reverting to default ReactMarkdown table rendering.
+- Mitigation: Quick rollback by re-adding the previous file if needed.
+
+Rollout
+- Apply change, run:
+  - npm run type-check
+  - npm run dev and smoke test the table scenarios above.
+- No environment changes required.
+
+Rollback Plan
+- Revert MarkdownRenderer.tsx to prior version.
+
+Owner
+- Frontend team
+
+Dependencies
+- None beyond existing packages (react-markdown, remark-gfm, rehype-highlight).
+
+Please apply the above file replacement. I can help validate after it’s live.
+
+<chatName="PRD to restore Markdown table rendering by removing table overrides"/>
