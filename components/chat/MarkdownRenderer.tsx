@@ -109,7 +109,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
           // Enhanced table rendering with material list/checklist detection
           table: ({ node, children, ...props }) => {
             // Check if this is a material list or checklist based on surrounding content
-            const isMaterialTable = isMaterialListOrChecklist(safeContent);
+            const isMaterialTable = false; // DISABLE BROKEN FEATURE - tables now render normally
             
             if (isMaterialTable) {
               // For material lists, we'll use a custom bullet-point format
