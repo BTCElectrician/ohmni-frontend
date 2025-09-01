@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/store/chatStore';
-import { chatService } from '@/services/chatService';
+import { chatService, normalizeStreamedMarkdown } from '@/services/chatService';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -390,6 +390,9 @@ export default function ChatPage() {
         if (aiResponse.metadata?.reasoning_remaining !== undefined) {
           toastSuccess(`Deep reasoning uses remaining today: ${aiResponse.metadata.reasoning_remaining}`);
         }
+
+        // Normalize markdown spacing and list markers after stream completes
+        updateMessage(tempAiMessageId, (prev) => normalizeStreamedMarkdown(prev));
         
 
         
@@ -494,7 +497,10 @@ export default function ChatPage() {
       if (aiResponse.metadata) {
         console.log('Response metadata:', aiResponse.metadata);
       }
-      
+
+      // Normalize markdown spacing and list markers after stream completes
+      updateMessage(tempAiMessageId, (prev) => normalizeStreamedMarkdown(prev));
+
       setIsStreaming(false);
       setStreamingMessageId(null);
       

@@ -6,6 +6,22 @@ import { toAttachmentFromFilePath } from '@/lib/files';
 import { useChatStore } from '@/store/chatStore';
 import { SESSION_TITLE_UPDATED_EVENT, SESSION_TITLE_STORAGE_KEY } from '@/lib/events';
 
+// Helper function to fix markdown formatting issues from streaming
+export function normalizeStreamedMarkdown(text: string): string {
+  return (text ?? '')
+    // Fix orphaned list markers (e.g., "1.\n\nText" becomes "1. Text")
+    .replace(/^(\d+)\.\s*\n+/gm, '$1. ')
+    .replace(/\n(\d+)\.\s*\n+/g, '\n$1. ')
+    // Fix orphaned bullet points
+    .replace(/^[-*]\s*\n+/gm, '- ')
+    .replace(/\n[-*]\s*\n+/g, '\n- ')
+    // Collapse excessive newlines (3+ becomes 2)
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove trailing spaces
+    .replace(/[ \t]+$/gm, '')
+    .trim();
+}
+
 function applyTitleFromComplete(data: { 
   session_title?: string; 
   session_id?: string; 
@@ -361,17 +377,27 @@ export class ChatService {
           }
         }
 
-        // If we got here, the stream completed successfully
-        // Return the complete message with metadata
-        return lastMessage || {
+        // Normalize the accumulated buffer for cleaner markdown
+        const normalizedBuffer = normalizeStreamedMarkdown(messageBuffer);
+
+        // If we received a 'message' event from the backend, normalize that too
+        if (lastMessage) {
+          const message = lastMessage as ChatMessage;
+          return {
+            ...message,
+            content: normalizeStreamedMarkdown(message.content ?? messageBuffer),
+          };
+        }
+
+        return {
           id: 'temp-' + Date.now(),
           sessionId: sessionId,
           role: 'assistant',
-          content: messageBuffer,
+          content: normalizedBuffer,
           timestamp: new Date(),
           metadata: configData ? {
             deep_reasoning: (configData as {deep_reasoning?: boolean})?.deep_reasoning || false,
-            nuclear_mode: (configData as {model?: string})?.model === 'o3',  // Renamed from nuclear_reasoning
+            nuclear_mode: (configData as {model?: string})?.model === 'o3',
             model_used: (configData as {model?: string})?.model,
             reasoning_remaining: (configData as {remaining_deep_reasoning?: number})?.remaining_deep_reasoning,
             nuclear_remaining: (configData as {remaining_nuclear?: number})?.remaining_nuclear

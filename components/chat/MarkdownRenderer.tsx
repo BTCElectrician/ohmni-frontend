@@ -97,9 +97,9 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
   const safeContent = typeof content === 'string' ? content : '';
   
   return (
-    <div className={`prose max-w-none ${
-      isUser 
-        ? 'prose-invert prose-p:text-white prose-headings:text-white prose-strong:text-white prose-code:text-white' 
+    <div className={`prose chat-prose max-w-none ${
+      isUser
+        ? 'prose-invert prose-p:text-white prose-headings:text-white prose-strong:text-white prose-code:text-white'
         : 'prose-invert prose-blue'
     }`}>
       <ReactMarkdown
