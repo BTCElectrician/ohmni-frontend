@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, BookOpenText } from 'lucide-react';
+import { Brain, Mic, Paperclip, Radiation, Send, X, Image as ImageIcon, DatabaseZap } from 'lucide-react';
 import Image from 'next/image';
 import { visionService } from '@/services/visionService';
 import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
@@ -390,7 +390,7 @@ export function ChatInput({
                 selectedFile 
                   ? "Add a message about this image (optional)..." 
                   : codeSearchMode 
-                    ? "Search NEC code..." 
+                    ? "Search ABCO database..." 
                     : "Type your message here..."
               }
               className="w-full bg-transparent text-white placeholder-[#4a5568] focus:outline-none text-[15px] px-6 pt-5 pb-14"
@@ -483,19 +483,34 @@ export function ChatInput({
                   <Radiation className={`w-5 h-5 ${nuclearThinking ? 'animate-pulse' : ''}`} />
                 </button>
 
-                {/* Code Search Toggle */}
+                {/* ABCO Database Search Toggle */}
                 <button
                   type="button"
                   onClick={toggleCodeSearch}
                   disabled={disabled || isStreaming || !!selectedFile}
-                  className={`p-2.5 rounded-lg transition-all ${
-                    codeSearchMode
-                      ? 'bg-orange-600/20 text-orange-600 ring-2 ring-orange-600/30'
-                      : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  title={selectedFile ? 'Not available with images' : codeSearchMode ? 'Code search mode active' : 'Search NEC code'}
+                                     className={`p-2.5 rounded-lg transition-all ${
+                     codeSearchMode
+                       ? 'bg-green-600/20 text-green-600 ring-2 ring-green-600/30'
+                       : 'bg-[#2d3748]/50 text-[#4a5568] hover:text-[#718096] hover:bg-[#2d3748]/70'
+                   } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  data-testid="toggle-abco-db"
+                  aria-pressed={codeSearchMode}
+                  aria-label={
+                    selectedFile
+                      ? 'Not available with images'
+                      : codeSearchMode
+                        ? 'Searching ABCO database'
+                        : 'Enable ABCO database'
+                  }
+                  title={
+                    selectedFile
+                      ? 'Not available with images'
+                      : codeSearchMode
+                        ? 'Searching ABCO database'
+                        : 'Enable ABCO database'
+                  }
                 >
-                  <BookOpenText className={`w-5 h-5 ${codeSearchMode ? 'animate-pulse' : ''}`} />
+                  <DatabaseZap className={`w-5 h-5 ${codeSearchMode ? 'animate-pulse' : ''}`} />
                 </button>
               </div>
 
@@ -533,9 +548,14 @@ export function ChatInput({
               )}
 
               {codeSearchMode && !selectedFile && (
-                <div className="flex items-center gap-2 text-sm text-orange-600 animate-fadeInUp">
-                  <BookOpenText className="w-4 h-4 animate-pulse" />
-                  <span>Code search mode active</span>
+                <div
+                  className="flex items-center gap-2 text-sm text-green-600 animate-fadeInUp"
+                  data-testid="abco-db-status"
+                >
+                  <DatabaseZap className="w-4 h-4 animate-pulse" />
+                  <span>Searching ABCO database</span>
+                  {/* SR-only live region for screen readers */}
+                  <span className="sr-only" aria-live="polite">Searching ABCO database</span>
                 </div>
               )}
 
