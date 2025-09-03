@@ -216,7 +216,7 @@
     .sidebar-mobile-enter {
       animation: slideInLeft 300ms ease-out;
     }
-    
+
     .sidebar-mobile-exit {
       animation: slideOutLeft 300ms ease-in;
     }
@@ -239,6 +239,28 @@
       transform: translateX(-100%);
     }
   }
+
+  /* Voice Recording Sound Wave Animations */
+  @keyframes sound-wave-1 {
+    0%, 100% { height: 1rem; }
+    50% { height: 1.5rem; }
+  }
+  @keyframes sound-wave-2 {
+    0%, 100% { height: 1.5rem; }
+    50% { height: 0.75rem; }
+  }
+  @keyframes sound-wave-3 {
+    0%, 100% { height: 1rem; }
+    50% { height: 1.75rem; }
+  }
+  @keyframes sound-wave-4 {
+    0%, 100% { height: 1.25rem; }
+    50% { height: 1rem; }
+  }
+  .animate-sound-wave-1 { animation: sound-wave-1 0.6s ease-in-out infinite; }
+  .animate-sound-wave-2 { animation: sound-wave-2 0.6s ease-in-out infinite 0.1s; }
+  .animate-sound-wave-3 { animation: sound-wave-3 0.6s ease-in-out infinite 0.2s; }
+  .animate-sound-wave-4 { animation: sound-wave-4 0.6s ease-in-out infinite 0.3s; }
 }
 
 /* Markdown Enhancements */

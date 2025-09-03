@@ -8,6 +8,13 @@ import { toastFromApiError, toastSuccess } from '@/lib/toast-helpers';
 import audioService from '@/services/audioService';
 import toast from 'react-hot-toast';
 import { sanitizeQuery } from '@/lib/sanitizeQuery';
+import { VoiceRecordingIndicator } from './VoiceRecordingIndicator';
+
+// Configuration constants
+const MAX_RECORDING_DURATION_SECONDS = parseInt(
+  process.env.NEXT_PUBLIC_MAX_RECORDING_DURATION_SECONDS || '300', // 5 minutes default
+  10
+);
 
 interface ChatInputProps {
   onSendMessage: (message: string, useDeepReasoning?: boolean, useNuclear?: boolean, useCodeSearch?: boolean) => void;
@@ -37,7 +44,6 @@ export function ChatInput({
   // Voice recording state
   const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'transcribing'>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const recordingStartRef = useRef<number>(0);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
 
@@ -192,28 +198,38 @@ export function ChatInput({
   // Voice recording handlers
   const handleStartRecording = async () => {
     try {
-      // Start the actual recording FIRST
+      // Set UI state immediately for instant feedback
+      setRecordingState('recording');
+      setRecordingDuration(0);
+      
+      // Start duration timer immediately
+      const localStartTime = Date.now();
+      const timer = setInterval(() => {
+        // Calculate duration based on local start time
+        const duration = Math.floor((Date.now() - localStartTime) / 1000);
+        console.log('Timer update:', duration); // Debug log
+        setRecordingDuration(duration);
+
+        // Auto-stop after configured duration
+        if (duration >= MAX_RECORDING_DURATION_SECONDS) {
+          handleStopRecording();
+        }
+      }, 1000); // Changed to 1 second intervals for clearer updates
+      
+      recordingIntervalRef.current = timer;
+      
+      // Start the actual recording
       await audioService.startRecording();
       
-      // Only update UI if recording actually started
-      if (audioService.isRecording()) {
-        setRecordingState('recording');
-        recordingStartRef.current = Date.now();
+      // Verify recording started
+      if (!audioService.isRecording()) {
+        // Rollback UI state if recording failed
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+        setRecordingState('idle');
         setRecordingDuration(0);
-        
-        // Start duration timer
-        const timer = setInterval(() => {
-          const duration = audioService.getRecordingDuration();
-          setRecordingDuration(duration);
-          
-          // Auto-stop after 60 seconds
-          if (duration >= 60) {
-            handleStopRecording();
-          }
-        }, 100);
-        
-        recordingIntervalRef.current = timer;
-      } else {
         throw new Error('Failed to start recording');
       }
     } catch (error) {
@@ -317,6 +333,11 @@ export function ChatInput({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 p-6">
+      {/* Recording timer overlay */}
+      <VoiceRecordingIndicator
+        isRecording={recordingState === 'recording'}
+        durationSeconds={recordingDuration}
+      />
       <div className="max-w-[900px] mx-auto">
         <form onSubmit={handleSubmit}>
           {/* Image Preview */}

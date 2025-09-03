@@ -48,7 +48,7 @@ class AudioService {
       };
 
       this.mediaRecorder.onstart = () => {
-        this.recordingStartTime = Date.now();
+        // Recording start time is now set before starting
       };
 
       this.mediaRecorder.onerror = (event: Event) => {
@@ -56,12 +56,15 @@ class AudioService {
         this.cleanup();
       };
 
+      // Set recording start time immediately before starting
+      this.recordingStartTime = Date.now();
+
       // Start recording with 100ms chunks
       this.mediaRecorder.start(100);
-      
+
       // Wait a moment to ensure recording has started
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       if (this.mediaRecorder.state !== 'recording') {
         throw new Error('Failed to start recording');
       }
